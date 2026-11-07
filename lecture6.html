@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 6 · Classic Ciphers ও Block Cipher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L6">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 6 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 6</div>
+  <h1>Crypto Primitives, Classic Ciphers ও Block Cipher</h1>
+  <p>Cryptanalysis-এর ৪ ধরনের আক্রমণ, substitution থেকে Vigenère, one-time pad, Hill cipher — তারপর আধুনিক block cipher-এর padding ও ৪টা mode of operation (ECB, CBC, CFB, OFB)।</p>
+  <div class="chips"><span class="chip">D<sub>K</sub>(E<sub>K</sub>(P)) = P</span><span class="chip">26!</span><span class="chip">Frequency analysis</span><span class="chip">Vigenère</span><span class="chip">OTP</span><span class="chip">Hill</span><span class="chip">PKCS5</span><span class="chip">ECB/CBC/CFB/OFB</span></div>
+</div>
+
+<section class="topic" id="primitives">
+  <h2>Crypto Primitives — নোটেশন</h2>
+  <p>Alice Bob-কে plaintext P পাঠাতে চায়; channel-এ Eve আড়ি পাতে। লক্ষ্য: insecure channel-এ নিরাপদ বিনিময় — <b>crypto to the rescue!</b></p>
+  <div class="formula">Secret key       : K
+Encryption       : C = E<sub>K</sub>(P)      (C = ciphertext, P = plaintext)
+Decryption       : P = D<sub>K</sub>(C)
+Consistency      : D<sub>K</sub>(E<sub>K</sub>(P)) = P</div>
+  <ul><li>Plaintext ও ciphertext-এর দৈর্ঘ্য সাধারণত সমান।</li><li><b>Efficiency:</b> E<sub>K</sub> ও D<sub>K</sub>-র দক্ষ অ্যালগরিদম থাকতে হবে।</li><li><b>Consistency:</b> ciphertext decrypt করলে plaintext ফেরত আসবে।</li></ul>
+</section>
+
+<section class="topic" id="attacks">
+  <h2>Cryptanalysis — ৪ ধরনের আক্রমণ</h2>
+  <p>Cryptosystem আক্রমণের বিজ্ঞান = <b>cryptanalysis</b>, যারা করে = cryptanalyst। ধরে নেওয়া হয় cryptanalyst <b>অ্যালগরিদম জানে</b>, শুধু key গোপন (Open design)। Security by obscurity ব্যর্থ হয় কারণ তথ্য ফাঁস হতে পারে — কোম্পানির ডকুমেন্ট চুরি, প্রোগ্রামারকে ঘুষ, বা সফটওয়্যার/হার্ডওয়্যার <b>reverse engineering</b>।</p>
+  <div class="tabs">
+    <div class="tab-btns"><button>Ciphertext-only</button><button>Known-plaintext</button><button>Chosen-plaintext</button><button>Chosen-ciphertext</button></div>
+    <div class="tab-pane"><p>Attacker-এর কাছে শুধু একই key K দিয়ে এনক্রিপ্ট করা এক বা একাধিক <b>ciphertext</b>। লক্ষ্য: plaintext বের করা, বা আরও ভালো — <b>K</b> বের করা।</p><div class="box story"><span class="label">📖 গল্প</span><p>যুদ্ধে শত্রুর রেডিও বার্তা আড়ি পেতে শুধু সাংকেতিক লেখা পাওয়া গেছে — আর কিছু জানা নেই। সবচেয়ে কঠিন পরিস্থিতি (attacker-এর জন্য)।</p></div></div>
+    <div class="tab-pane"><p>Attacker-এর কাছে একই K দিয়ে তৈরি কিছু <b>(plaintext, ciphertext) জোড়া</b>। লক্ষ্য: K বের করা।</p><div class="box story"><span class="label">📖 গল্প</span><p>দ্বিতীয় বিশ্বযুদ্ধে জার্মানরা প্রতিদিন সকালে আবহাওয়া রিপোর্ট পাঠাত যাতে “WETTER” (আবহাওয়া) শব্দ থাকতই — ব্রিটিশরা জানা plaintext-টা ব্যবহার করে Enigma-র key খুঁজত।</p></div></div>
+    <div class="tab-pane"><p>Attacker নিজের পছন্দমতো plaintext <b>বেছে দিয়ে</b> তার ciphertext পায় (একই K)।</p><ul><li><b>Offline:</b> সব plaintext আগেই ঠিক করে দিতে হয়।</li><li><b>Adaptive:</b> আগের ফলাফল দেখে পরের plaintext বাছাই করা যায় (iterative)।</li></ul><div class="box story"><span class="label">📖 গল্প</span><p>তুমি কারো ফোনে ইচ্ছামতো লেখা টাইপ করে “Encrypt” বাটন চাপতে পারো, কিন্তু key দেখতে পারো না।</p></div></div>
+    <div class="tab-pane"><p>Attacker পছন্দমতো <b>ciphertext</b> দিয়ে তার plaintext পায় (একই K)। এরও offline ও adaptive সংস্করণ আছে।</p><div class="box story"><span class="label">📖 গল্প</span><p>একটা সার্ভার যেকোনো ciphertext decrypt করে দেয় (decryption oracle) — attacker চালাকি করে বানানো ciphertext পাঠিয়ে key-র তথ্য বের করে।</p></div></div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">একটা ATM-এর এনক্রিপ্টেড লগ ও কয়েকটা লেনদেনের আসল রসিদ (plaintext) পাওয়া গেছে। কোন আক্রমণ?</div>
+    <button class="opt">Ciphertext-only</button><button class="opt">Known-plaintext</button><button class="opt">Chosen-plaintext</button><button class="opt">Chosen-ciphertext</button>
+    <div class="explain">Plaintext-ciphertext জোড়া জানা, কিন্তু attacker বেছে দেয়নি → known-plaintext।</div>
+  </div>
+</section>
+
+<section class="topic" id="substitution">
+  <h2>Substitution Cipher ও Frequency Analysis</h2>
+  <p>প্রতিটা অক্ষরকে অনন্যভাবে অন্য একটা অক্ষর দিয়ে বদলানো। Caesar হলো এর একটা উদাহরণ (৩ ঘর ডানে, শেষে wrap)।</p>
+  <div class="formula">E<sub>k</sub>(x) = (x + k) mod 26
+D<sub>k</sub>(x) = (x − k) mod 26          Caesar: k = 3</div>
+  <ul>
+    <li>শুধু shift হলে মাত্র ২৬টা key → brute force-এ সহজে ভাঙে।</li>
+    <li><b>সাধারণীকরণ:</b> প্রতিটা অক্ষরের যেকোনো অনন্য প্রতিস্থাপন → key space <b>26! ≈ 4.03 × 10<sup>26</sup></b>।</li>
+  </ul>
+  <div class="box warn"><span class="label">⚠️ কিন্তু…</span><p>এত বড় key space হলেও substitution সহজে ভাঙে, কারণ ভাষার অক্ষরগুলো <b>সমানভাবে বণ্টিত নয়</b>। ইংরেজিতে <b>E ≈ 12%</b>, <b>T ≈ 9%</b>…। ciphertext-এর সবচেয়ে বেশি আসা অক্ষর সম্ভবত E। জোড়া (digram: TH, HE) ও ত্রয়ী (THE) frequency-ও কাজে লাগে।</p></div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>শার্লক হোমসের “The Adventure of the Dancing Men” গল্পে নাচের ভঙ্গির মানুষের ছবি দিয়ে বার্তা লেখা — হোমস সবচেয়ে বেশি আসা চিহ্নটাকে E ধরে পুরো কোড ভেঙে ফেলেন। এটাই frequency analysis!</p></div>
+  <div class="lab"><span class="label">🧪 Frequency analyzer</span>
+    <div class="row"><label for="fa-in">টেক্সট (ciphertext বা plaintext)</label></div>
+    <textarea id="fa-in">WKH VHFXULWB RI D FUBSWRVBVWHP VKRXOG GHSHQG RQOB RQ WKH VHFUHFB RI WKH NHB DQG QRW RQ WKH VHFUHFB RI WKH DOJRULWKP</textarea>
+    <div class="row"><button class="btn" id="fa-go">বিশ্লেষণ করো</button><button class="btn ghost" id="fa-guess">সবচেয়ে বেশি অক্ষর = E ধরে Caesar ভাঙো</button></div>
+    <div id="fa-chart" style="display:flex;align-items:flex-end;gap:2px;height:140px;margin-top:8px"></div>
+    <div class="out" id="fa-out"></div>
+  </div>
+</section>
+
+<section class="topic" id="polygraphic">
+  <h2>Polygraphic Substitution ও S-box</h2>
+  <p>Plaintext-কে দুই অক্ষরের টুকরায় (<b>digram</b>) ভাগ করে প্রতিটা digram-কে অন্য অনন্য digram দিয়ে বদলানো।</p>
+  <ul>
+    <li>26² = <b>676</b>টা digram → key space <b>676!</b> — বিশাল উন্নতি!</li>
+    <li>সমস্যা: key অনেক লম্বা — ৬৭৬টা প্রতিস্থাপনই লিখে রাখতে হয়।</li>
+    <li>প্রকাশের সহজ উপায়: <b>2D টেবিল</b> — প্রথম অক্ষর = সারি, দ্বিতীয় = কলাম, সেলে প্রতিস্থাপন। একে বলে <b>substitution box বা S-box</b>।</li>
+    <li>Binary মানের জন্যও বাড়ানো যায় — যেমন 4-bit ইনপুট: প্রথম 2 bit সারি, শেষ 2 bit কলাম।</li>
+  </ul>
+  <div class="box example"><span class="label">💡 Binary S-box উদাহরণ (2-bit সারি × 2-bit কলাম → 4-bit আউটপুট)</span>
+    <div class="tbl-wrap"><table style="max-width:420px">
+      <tr><th></th><th class="c">00</th><th class="c">01</th><th class="c">10</th><th class="c">11</th></tr>
+      <tr><th>00</th><td class="c">0011</td><td class="c">0100</td><td class="c">1111</td><td class="c">0001</td></tr>
+      <tr><th>01</th><td class="c">1010</td><td class="c">0110</td><td class="c">0101</td><td class="c">1011</td></tr>
+      <tr><th>10</th><td class="c">1110</td><td class="c">1101</td><td class="c">0100</td><td class="c">0010</td></tr>
+      <tr><th>11</th><td class="c">0111</td><td class="c">0000</td><td class="c">1001</td><td class="c">1100</td></tr>
+    </table></div>
+    <p>ইনপুট <code>0110</code> → সারি <code>01</code>, কলাম <code>10</code> → আউটপুট <code>0101</code>। AES-এর SubBytes ঠিক এই ধারণার 16×16 সংস্করণ (Lecture 7)।</p>
+  </div>
+</section>
+
+<section class="topic" id="vigenere">
+  <h2>Vigenère Cipher</h2>
+  <p>m দৈর্ঘ্যের block-এ কাজ করে। Key হলো m টা shift-এর ক্রম <code>(k<sub>1</sub>, k<sub>2</sub>, …, k<sub>m</sub>)</code> (mod 26)। block-এর প্রথম অক্ষর k<sub>1</sub> ঘর, দ্বিতীয় k<sub>2</sub> ঘর… shift। তাই একই অক্ষর অবস্থানভেদে <b>m রকম</b> ভাবে বদলাতে পারে। Decryption = উল্টো shift।</p>
+  <div class="box story"><span class="label">📖 গল্প</span><p>Caesar হলো একটা চাকা; Vigenère হলো m টা আলাদা চাকা পালা করে ঘোরানো। শত শত বছর একে “le chiffre indéchiffrable” (অভেদ্য cipher) বলা হতো — পরে <b>পরিসংখ্যান</b> দিয়ে (key-র দৈর্ঘ্য অনুমান করে প্রতিটা অবস্থানে frequency analysis) ভাঙা গেছে।</p></div>
+  <div class="lab"><span class="label">🧪 Vigenère মেশিন</span>
+    <div class="row"><label for="vg-p">Plaintext</label><input type="text" id="vg-p" value="ATTACKATDAWN" style="flex:1"></div>
+    <div class="row"><label for="vg-k">Key (শব্দ)</label><input type="text" id="vg-k" value="LEMON"></div>
+    <div class="out" id="vg-out"></div>
+  </div>
+</section>
+
+<section class="topic" id="otp">
+  <h2>One-Time Pad — একমাত্র অভেদ্য cipher</h2>
+  <p>১৯১৭ সালে <b>Joseph Mauborgne ও Gilbert Vernam</b> উদ্ভাবন করেন। n দৈর্ঘ্যের plaintext M-এর জন্য n টা shift key <code>(k<sub>1</sub>,…,k<sub>n</sub>)</code>, প্রতিটা <b>সম্পূর্ণ র‍্যান্ডম</b>। যেহেতু প্রতিটা shift র‍্যান্ডম, যেকোনো plaintext-এর জন্য যেকোনো ciphertext <b>সমান সম্ভাব্য</b> → perfect security।</p>
+  <div class="box warn"><span class="label">⚠️ দুর্বলতা</span><ul><li>Key-কে plaintext-এর <b>সমান লম্বা</b> হতে হবে।</li><li>Key <b>কখনো পুনরায় ব্যবহার করা যাবে না</b>।</li><li>শীতল যুদ্ধে সোভিয়েত গুপ্তচররা pad পুনরায় ব্যবহার করায় আমেরিকা তাদের বার্তা ভেঙেছিল (VENONA project)।</li></ul></div>
+  <div class="lab"><span class="label">🧪 OTP (XOR সংস্করণ) — key পুনর্ব্যবহারের বিপদ</span>
+    <div class="row"><label for="otp1">M1</label><input type="text" id="otp1" value="MEET AT NOON" style="flex:1"></div>
+    <div class="row"><label for="otp2">M2</label><input type="text" id="otp2" value="BOMB AT DAWN" style="flex:1"></div>
+    <div class="row"><button class="btn" id="otp-go">নতুন র‍্যান্ডম key দিয়ে encrypt (একই key দুবার!)</button></div>
+    <div class="out" id="otp-out"></div>
+  </div>
+</section>
+
+<section class="topic" id="hill">
+  <h2>Hill Cipher — ম্যাট্রিক্স দিয়ে এনক্রিপশন</h2>
+  <p>m অক্ষরের block নাও, প্রতিটা অক্ষর 0–25 সংখ্যা → দৈর্ঘ্য m-এর ভেক্টর। Key হলো m × m র‍্যান্ডম ম্যাট্রিক্স K (mod 26-এ invertible হতে হবে)।</p>
+  <div class="formula">"CAT" → x = [2, 0, 19]ᵀ
+Encrypt : c = K · x   (mod 26)
+Decrypt : x = K⁻¹ · c (mod 26)
+কারণ   : K⁻¹·c = K⁻¹·(K·x) = (K⁻¹·K)·x = I·x = x</div>
+  <div class="lab"><span class="label">🧪 2×2 Hill cipher</span>
+    <div class="row"><label for="hk">K = [a b; c d]</label><input type="text" id="hk" value="3 3 2 5"><label for="hp">Plaintext</label><input type="text" id="hp" value="HELP"></div>
+    <div class="out" id="hout"></div>
+  </div>
+</section>
+
+<section class="topic" id="block">
+  <h2>Block Cipher ও Padding</h2>
+  <p>Block cipher plaintext-কে নির্দিষ্ট দৈর্ঘ্যের (b bit) block-এ ভাগ করে প্রতিটা block এনক্রিপ্ট করে। তাই plaintext-এর দৈর্ঘ্য n-কে b-এর গুণিতক হতে হবে → শেষ block-এ <b>padding</b>।</p>
+  <ul>
+    <li>Padding <b>দ্ব্যর্থহীন</b> হতে হবে — শুধু শূন্য যোগ করলে হবে না (আসল ডেটাও শূন্যে শেষ হতে পারে!)।</li>
+    <li><b>PKCS5:</b> প্রতিটা padding byte-এর মান = padding-এর দৈর্ঘ্য (byte-এ)।</li>
+    <li>b = 128 bit (16 byte), “Roberto” (7 byte) → <code>Roberto999999999</code> (এখানে 9 মানে সংখ্যা 9, অক্ষর ‘9’ নয়)।</li>
+    <li>শেষ block-কে <b>সবসময়</b> pad করো — প্রয়োজনে পুরো একটা padding block — যাতে padding আছে কি না নিয়ে কোনো দ্ব্যর্থতা না থাকে।</li>
+  </ul>
+  <div class="lab"><span class="label">🧪 PKCS5 padding</span>
+    <div class="row"><label for="pd-in">Plaintext</label><input type="text" id="pd-in" value="Roberto"><label for="pd-b">Block (byte)</label><select id="pd-b"><option>8</option><option selected>16</option></select></div>
+    <div class="out" id="pd-out"></div>
+  </div>
+</section>
+
+<section class="topic" id="modes">
+  <h2>Modes of Operation — ECB, CBC, CFB, OFB</h2>
+  <p>AES-এর মতো block cipher বিভিন্নভাবে ব্যবহার করা যায় — এগুলোই <b>modes of operation</b>।</p>
+  <div class="tabs">
+    <div class="tab-btns"><button>ECB</button><button>CBC</button><button>CFB</button><button>OFB</button></div>
+    <div class="tab-pane">
+      <div class="formula">C<sub>i</sub> = E<sub>K</sub>(P<sub>i</sub>)          P<sub>i</sub> = D<sub>K</sub>(C<sub>i</sub>)</div>
+      <p>প্রতিটা block আলাদাভাবে, একই key-তে — একটা বিশাল “codebook”-এর মতো।</p>
+      <p>✅ র‍্যান্ডম স্ট্রিং (key, IV) বা এক block-এ আঁটে এমন ডেটার জন্য ঠিক আছে।<br>❌ ডকুমেন্ট ও ছবির জন্য অনুপযুক্ত — plaintext-এর <b>প্যাটার্ন ciphertext-এ থেকে যায়</b> (বিখ্যাত ECB penguin)।</p>
+    </div>
+    <div class="tab-pane">
+      <div class="formula">C<sub>0</sub> = IV
+C<sub>i</sub> = E<sub>K</sub>(P<sub>i</sub> ⊕ C<sub>i−1</sub>)      P<sub>i</sub> = D<sub>K</sub>(C<sub>i</sub>) ⊕ C<sub>i−1</sub></div>
+      <p>প্রতিটা block এনক্রিপ্টের আগে আগের ciphertext-এর সাথে XOR — শিকলের মতো।</p>
+      <p>✅ প্যাটার্ন দেখায় না; সবচেয়ে প্রচলিত; দ্রুত ও তুলনামূলক সহজ।<br>❌ সব block <b>ক্রমানুসারে নির্ভরযোগ্যভাবে</b> পৌঁছাতে হয় → packet loss হয় এমন অ্যাপে (গান/ভিডিও স্ট্রিমিং) অনুপযুক্ত।</p>
+    </div>
+    <div class="tab-pane">
+      <div class="formula">C<sub>0</sub> = IV
+C<sub>i</sub> = E<sub>K</sub>(C<sub>i−1</sub>) ⊕ P<sub>i</sub>      P<sub>i</sub> = E<sub>K</sub>(C<sub>i−1</sub>) ⊕ C<sub>i</sub></div>
+      <p>Block cipher-কে <b>stream cipher</b>-এর মতো ব্যবহার করে — আগের ciphertext এনক্রিপ্ট করে keystream বানায়, তারপর plaintext-এর সাথে XOR। লক্ষ করো: decryption-এও <b>E</b> ব্যবহার হয়।</p>
+    </div>
+    <div class="tab-pane">
+      <div class="formula">O<sub>0</sub> = IV,  O<sub>i</sub> = E<sub>K</sub>(O<sub>i−1</sub>)
+C<sub>i</sub> = P<sub>i</sub> ⊕ O<sub>i</sub>      P<sub>i</sub> = C<sub>i</sub> ⊕ O<sub>i</sub></div>
+      <p>Keystream শুধু IV ও key থেকে — ciphertext-এর উপর নির্ভর করে না, তাই আগেই বানিয়ে রাখা যায়; একটা bit নষ্ট হলে শুধু সেই bit-ই নষ্ট হয়।</p>
+    </div>
+  </div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>ECB হলো এমন অনুবাদক যে প্রতিটা শব্দ অভিধান থেকে আলাদা অনুবাদ করে — “ভাত” সবসময় একই সংকেত, তাই কতবার “ভাত” এসেছে গুনে ফেলা যায়। CBC-তে প্রতিটা শব্দের অনুবাদ আগের শব্দের উপর নির্ভর করে — একই শব্দ প্রতিবার ভিন্ন দেখায়।</p></div>
+  <div class="lab"><span class="label">🧪 ECB বনাম CBC — ছবি এনক্রিপ্ট করে দেখো</span>
+    <div class="row"><button class="btn" data-mode="plain">মূল ছবি</button><button class="btn" data-mode="ecb">ECB</button><button class="btn" data-mode="cbc">CBC</button><span class="flash-hint" id="ecb-note"></span></div>
+    <canvas id="ecb" width="320" height="200" style="max-width:100%;border-radius:8px;border:1px solid var(--line);image-rendering:pixelated"></canvas>
+    <p class="flash-hint">প্রতি ৪ পিক্সেল = ১ block; একটা খেলনা block cipher ব্যবহার করা হয়েছে। ECB-তে একই রঙের block একই ciphertext দেয় → আকৃতি দেখা যায়।</p>
+  </div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="2">
+    <div class="q">১) 26! key space থাকা সত্ত্বেও substitution cipher দুর্বল কেন?</div>
+    <button class="opt">Key ছোট</button><button class="opt">অ্যালগরিদম গোপন নয়</button><button class="opt">ভাষার অক্ষর-frequency অসম</button><button class="opt">Padding নেই</button>
+    <div class="explain">Frequency analysis — E ≈ 12%, T ≈ 9%।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">২) ভিডিও স্ট্রিমিং-এ CBC অনুপযুক্ত কেন?</div>
+    <button class="opt">সব block ক্রমানুসারে নির্ভরযোগ্যভাবে লাগে; packet loss সহ্য করে না</button><button class="opt">প্যাটার্ন দেখায়</button><button class="opt">IV লাগে না</button><button class="opt">খুব ধীর</button>
+    <div class="explain">প্রতিটা block আগের ciphertext-এর উপর নির্ভরশীল।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৩) 16-byte block-এ ঠিক 16 byte-এর plaintext হলে PKCS5 কী করে?</div>
+    <button class="opt">Padding দেয় না</button><button class="opt">1 byte padding</button><button class="opt">শূন্য দিয়ে pad</button><button class="opt">পুরো একটা নতুন block (16টা byte, প্রতিটার মান 16)</button>
+    <div class="explain">সবসময় pad — দ্ব্যর্থতা দূর করতে।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">৪) One-time pad কবে ভাঙা যায়?</div>
+    <button class="opt">Key র‍্যান্ডম হলে</button><button class="opt">একই pad পুনরায় ব্যবহার করলে</button><button class="opt">বার্তা লম্বা হলে</button><button class="opt">কখনো না, কোনো অবস্থায়ই</button>
+    <div class="explain">C1⊕C2 = M1⊕M2 — key বাদ পড়ে যায়।</div>
+  </div>
+</section>
+
+<div class="pager">
+  <a href="lecture5.html"><small>← আগের লেকচার</small>Lecture 5: Hash & Password</a>
+  <a class="next" href="lecture7.html"><small>পরের লেকচার →</small>Lecture 7: AES</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l6.js"></script>
+</body>
+</html>

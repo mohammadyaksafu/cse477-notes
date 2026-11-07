@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSE 477 বাংলা নোট</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <button class="icon-btn" id="reset" title="সব progress মুছে ফেলো">↺ Progress রিসেট</button>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="kicker">CSE 477 · INTRODUCTION TO COMPUTER SECURITY</div>
+    <h1>গল্পে গল্পে কম্পিউটার সিকিউরিটি</h1>
+    <p>Lecture 3 থেকে 10 — প্রতিটা স্লাইডের বিষয় বাংলায় ব্যাখ্যা, গল্প, উদাহরণ, নিজে চালিয়ে দেখার মতো ল্যাব (Caesar, AES, RSA, Diffie-Hellman…), ফ্ল্যাশকার্ড আর কুইজ সহ।</p>
+    <p class="en">মূল স্লাইড: Dr. Md Sadek Ferdous, CSE, SUST। টেকনিক্যাল শব্দগুলো ইংরেজিতেই রাখা হয়েছে যাতে পরীক্ষায় লিখতে সুবিধা হয়।</p>
+  </div>
+
+  <h2>📚 লেকচারসমূহ</h2>
+  <div class="lec-grid" id="lecs">
+    <a class="lec-card" href="lecture3.html" data-l="L3"><div class="num">LECTURE 3</div><h3>Security Principles ও Access Control</h3><p>Saltzer–Schroeder-এর ১০ নীতি · Matrix · ACL · Capabilities · RBAC</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture4.html" data-l="L4"><div class="num">LECTURE 4</div><h3>Basic Crypto Concepts</h3><p>Encryption · Caesar · Symmetric vs Public key · Digital signature · MITM · Unicity distance</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture5.html" data-l="L5"><div class="num">LECTURE 5</div><h3>Hash, MAC, Certificate ও Password</h3><p>Hash-then-sign · h(K‖M) · CA · Password complexity · Dictionary attack · Social engineering</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture6.html" data-l="L6"><div class="num">LECTURE 6</div><h3>Classic Ciphers ও Block Cipher</h3><p>৪ আক্রমণ · Substitution · Vigenère · OTP · Hill · Padding · ECB/CBC/CFB/OFB</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture7.html" data-l="L7"><div class="num">LECTURE 7</div><h3>AES</h3><p>DES/3DES · State array · SubBytes · ShiftRows · MixColumns · Key expansion · Timing attack</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture8.html" data-l="L8"><div class="num">LECTURE 8</div><h3>Number Theory ও RSA</h3><p>GCD · Inverse · Fermat · Euler · RSA · Repeated squaring · Primality test</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture9.html" data-l="L9"><div class="num">LECTURE 9</div><h3>Elgamal, DH, Hash ও Signature</h3><p>Discrete log · Diffie-Hellman + MITM · Merkle–Damgård · Birthday attack · RSA signature</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture10.html" data-l="L10"><div class="num">LECTURE 10</div><h3>Cryptographic Protocols</h3><p>Lock-box thought experiment · XOR protocol · Notation · Goals · Attacks</p><div class="progress"><i></i></div></a>
+  </div>
+
+  <section class="topic">
+    <h2>🎭 চরিত্রেরা — সব লেকচারে এরা ফিরে আসবে</h2>
+    <div class="cast">
+      <div><b>👩 Alice</b>বার্তা পাঠায়</div>
+      <div><b>👨 Bob</b>বার্তা পায়</div>
+      <div><b>🕵️ Eve</b>আড়ি পাতে (passive)</div>
+      <div><b>😈 Mallory / Charlie</b>মাঝখানে বসে বদলায় (active)</div>
+      <div><b>🧔 Ivan</b>Lecture 10-এর বন্ধু, দমনমূলক দেশে থাকে</div>
+      <div><b>🏛️ CA</b>বিশ্বস্ত কর্তৃপক্ষ, certificate সই করে</div>
+    </div>
+    <h3>কীভাবে পড়বে</h3>
+    <ul>
+      <li>প্রতিটা অংশের শেষে “পড়া শেষ” বাটনে ক্লিক করলে progress বার পূরণ হবে (এই ব্রাউজারে মনে থাকবে)।</li>
+      <li><span class="chip">📖 গল্প</span> = ধারণাটা মনে গেঁথে রাখার জন্য; <span class="chip">💡 উদাহরণ</span> = বাস্তব প্রয়োগ; <span class="chip">🎯</span> = পরীক্ষায় গুরুত্বপূর্ণ; <span class="chip">🧪 Lab</span> = নিজে মান বদলে দেখো।</li>
+      <li>উপরের 🌓 বাটনে ডার্ক মোড। প্রিন্ট করলে সব ধাপ একসাথে ছাপা হবে।</li>
+    </ul>
+  </section>
+
+  <section class="topic">
+    <h2>🔎 শব্দকোষ (Glossary)</h2>
+    <div class="row"><label for="gq">খুঁজো</label><input type="text" id="gq" placeholder="যেমন: ACL, Φ(n), replay…" style="flex:1"></div>
+    <div class="tbl-wrap"><table id="gloss"></table></div>
+  </section>
+</div>
+<script src="js/app.js"></script>
+<script src="js/index.js"></script>
+</body>
+</html>

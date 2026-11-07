@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 4 · Basic Crypto Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L4">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 4 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 4</div>
+  <h1>Basic Crypto Concepts</h1>
+  <p>Encryption কী, cryptosystem-এর ৭টা অংশ, Caesar cipher, symmetric বনাম public key, hybrid system, digital signature, Man-in-the-Middle আর brute-force আক্রমণ — সাথে <b>unicity distance</b>-এর গণিত।</p>
+  <div class="chips"><span class="chip">C = E(M)</span><span class="chip">Caesar</span><span class="chip">n(n−1)/2</span><span class="chip">Digital signature</span><span class="chip">MITM</span><span class="chip">Unicity distance</span></div>
+</div>
+
+<section class="topic" id="cast">
+  <h2>চরিত্র পরিচিতি — ক্রিপ্টোগ্রাফির “নাটক”</h2>
+  <p>ক্রিপ্টোগ্রাফির সব বইয়ে একই চরিত্ররা অভিনয় করে। এদের চিনে রাখলে বাকি সব লেকচার সহজ হবে:</p>
+  <div class="cast">
+    <div><b>👩 Alice</b>বার্তা পাঠায় (সাধারণত)।</div>
+    <div><b>👨 Bob</b>বার্তা গ্রহণ করে।</div>
+    <div><b>🕵️ Eve</b><i>Eavesdropper</i> — শুধু আড়ি পাতে (passive)।</div>
+    <div><b>😈 Mallory / Charlie</b>মাঝখানে বসে বার্তা বদলায় (active, MITM)।</div>
+  </div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>Alice সিলেটে, Bob ঢাকায়। তারা ইন্টারনেটে (insecure channel) প্রেমপত্র পাঠায়। মাঝখানে পাবলিক Wi-Fi-র মালিক Eve সব প্যাকেট দেখতে পারে। প্রশ্ন: এমনভাবে কীভাবে লিখবে যাতে Eve দেখেও কিছু বুঝতে না পারে? — এটাই <b>encryption</b>-এর উদ্দেশ্য।</p></div>
+</section>
+
+<section class="topic" id="encryption">
+  <h2>Encryption ও Decryption</h2>
+  <p>Encryption হলো দুই পক্ষের (Alice ও Bob) মধ্যে <b>insecure channel</b>-এর উপর দিয়ে <b>গোপন যোগাযোগ</b> স্থাপনের উপায় — যেখানে আড়ি পাতা সম্ভব।</p>
+  <div class="flow"><span class="node">Plaintext M</span><span class="arr">→ E (encrypt) →</span><span class="node k">Ciphertext C</span><span class="arr">→ insecure channel →</span><span class="node k">C</span><span class="arr">→ D (decrypt) →</span><span class="node">M</span></div>
+  <div class="formula">C = E(M)        M = D(C)</div>
+  <ul>
+    <li><b>Plaintext (M)</b>: আসল বার্তা। <b>Ciphertext (C)</b>: এনক্রিপ্টেড রূপ।</li>
+    <li>Alice ও Bob ছাড়া কারো পক্ষে C থেকে M বের করা <b>infeasible</b> হতে হবে — তাই C insecure channel-এ পাঠানো যায়।</li>
+    <li>Decryption-এ একটা গোপন তথ্য লাগে — <b>decryption key</b>। অ্যালগরিদম নিজে পাবলিক সফটওয়্যার হতে পারে, শুধু key গোপন (মনে আছে? Open design!)।</li>
+    <li>Encryption-এও একটা <b>encryption key</b> লাগে যা decryption key-র সাথে সম্পর্কিত। Encryption key থেকে decryption key বের করা যদি সহজ হয়, তাহলে encryption key-ও গোপন রাখতে হবে (→ symmetric)।</li>
+  </ul>
+  <h3>Cryptosystem-এর ৭টা উপাদান</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>#</th><th>উপাদান</th><th>Caesar cipher-এ কী</th></tr>
+    <tr><td>1</td><td>সম্ভাব্য plaintext-এর সেট</td><td>সব অক্ষরের স্ট্রিং</td></tr>
+    <tr><td>2</td><td>সম্ভাব্য ciphertext-এর সেট</td><td>সব অক্ষরের স্ট্রিং</td></tr>
+    <tr><td>3</td><td>Encryption key-র সেট</td><td>{k = 3}</td></tr>
+    <tr><td>4</td><td>Decryption key-র সেট</td><td>{k = −3}</td></tr>
+    <tr><td>5</td><td>Encryption ও decryption key-র মধ্যে সম্পর্ক</td><td>k ↔ −k</td></tr>
+    <tr><td>6</td><td>Encryption algorithm</td><td>ডানে shift</td></tr>
+    <tr><td>7</td><td>Decryption algorithm</td><td>বামে shift</td></tr>
+  </table></div>
+  <div class="box exam"><span class="label">🎯 মনে রাখার ছন্দ</span><p>“<b>২ সেট টেক্সট, ২ সেট কি, ১ সম্পর্ক, ২ অ্যালগরিদম</b>” = ৭।</p></div>
+</section>
+
+<section class="topic" id="caesar">
+  <h2>Caesar Cipher — প্রথম cryptosystem</h2>
+  <p>প্রতিটা অক্ষরকে বর্ণমালায় <b>তিন ঘর পরের</b> অক্ষর দিয়ে বদলাও। এটা একটা <b>shift cipher</b>। সূত্র: <code>s(c, k)</code> — c একটা অক্ষর, k হলো key। k &gt; 0 হলে forward shift (encryption), k &lt; 0 হলে backward shift (decryption)। শেষে পৌঁছালে <b>modulo</b> দিয়ে আবার শুরুতে ঘুরে আসে।</p>
+  <div class="formula">s(A, 3) = D        s(D, −3) = A        s(Y, 3) = B  (wrap-around)</div>
+  <p class="en">নোট: স্লাইডে প্রাচীন ল্যাটিন বর্ণমালার ২৩ অক্ষরের কথা বলা আছে; আমরা আধুনিক ২৬ অক্ষর দিয়ে খেলব।</p>
+  <div class="box story"><span class="label">📖 গল্প</span><p>জুলিয়াস সিজার যুদ্ধক্ষেত্রে সেনাপতিদের চিঠি পাঠাতেন এভাবে। দূত ধরা পড়লেও শত্রু “DWWDFN DW GDZQ” পড়ে কিছু বুঝত না — অথচ এর মানে “ATTACK AT DAWN”!</p></div>
+  <div class="lab"><span class="label">🧪 Caesar মেশিন</span>
+    <div class="row"><label for="cz-in">টেক্সট</label><input type="text" id="cz-in" value="ATTACK AT DAWN" style="flex:1"></div>
+    <div class="row"><label for="cz-k">Key k</label><input type="range" id="cz-k" min="-25" max="25" value="3"><b id="cz-kv">3</b></div>
+    <div class="out" id="cz-out"></div>
+  </div>
+</section>
+
+<section class="topic" id="keys">
+  <h2>Symmetric বনাম Public-key: কতগুলো key লাগে?</h2>
+  <div class="tabs">
+    <div class="tab-btns"><button>Symmetric</button><button>Public key</button><button>Hybrid (দুটো মিলিয়ে)</button></div>
+    <div class="tab-pane">
+      <p>Symmetric cryptosystem <b>দ্রুত ও দক্ষ</b>, কিন্তু মূল সমস্যা <b>key distribution</b>: প্রতিটা জোড়ার আলাদা গোপন key লাগে।</p>
+      <div class="formula">n জন মানুষ → n(n − 1) / 2 টা key</div>
+      <div class="box story"><span class="label">📖 গল্প</span><p>ক্লাসে ৬০ জন, প্রত্যেকে প্রত্যেকের সাথে গোপনে কথা বলতে চায় → ৬০×৫৯/২ = <b>১৭৭০টা</b> আলাদা চাবি! আর প্রতিটা চাবি আগে গোপনে হাতে হাতে পৌঁছাতে হবে। 😩</p></div>
+    </div>
+    <div class="tab-pane">
+      <p>প্রতিটা user-এর একটা <b>key pair</b>: public key (P) সবাইকে দাও, private/secret key (S) নিজের কাছে। যে কেউ Bob-এর public key দিয়ে encrypt করতে পারে, কিন্তু শুধু Bob তার private key দিয়ে decrypt করতে পারে।</p>
+      <div class="formula">n জন মানুষ → প্রত্যেক recipient-এর জন্য মাত্র ১টা public key distribute করতে হয় (মোট n টা key pair)</div>
+      <div class="box story"><span class="label">📖 গল্প</span><p>Bob তার বাড়ির সামনে একটা <b>খোলা তালার স্তূপ</b> রাখল (public key)। যে কেউ একটা তালা নিয়ে বাক্সে লাগিয়ে পাঠাতে পারে, কিন্তু খোলার চাবি (private key) শুধু Bob-এর কাছে।</p></div>
+    </div>
+    <div class="tab-pane">
+      <p>Public-key-এর সমস্যা: symmetric-এর চেয়ে <b>অনেক ধীর</b>, interactive সেশনের জন্য অনুপযুক্ত, আর key অনেক বড় — RSA সাধারণত <b>2,048-bit</b>, AES সাধারণত <b>256-bit</b>।</p>
+      <p>সমাধান: public-key শুধু একবার ব্যবহার করে একটা <b>shared secret key</b> বিনিময় করো, তারপর বাকি সব কথা symmetric দিয়ে।</p>
+      <div class="flow"><span class="node">Alice বানায় র‍্যান্ডম key K</span><span class="arr">→</span><span class="node k">E<sub>PB</sub>(K)</span><span class="arr">→ Bob decrypt →</span><span class="node b">দুজনের কাছে K</span><span class="arr">→</span><span class="node">AES<sub>K</sub>(সব বার্তা)</span></div>
+      <div class="box example"><span class="label">💡 বাস্তবে</span><p>HTTPS/TLS ঠিক এটাই করে — শুরুতে public-key (handshake), তারপর AES দিয়ে ওয়েবপেজ।</p></div>
+    </div>
+  </div>
+  <div class="lab"><span class="label">🧮 Key সংখ্যা ক্যালকুলেটর</span>
+    <div class="row"><label for="kn">মানুষ সংখ্যা n</label><input type="range" id="kn" min="2" max="1000" value="60"><b id="knv">60</b></div>
+    <div class="out" id="kout"></div>
+  </div>
+</section>
+
+<section class="topic" id="signature">
+  <h2>Digital Signature (মূল ধারণা)</h2>
+  <p>Public-key সিস্টেমে encryption ও decryption-এর <b>ক্রম উল্টানো যায়</b>:</p>
+  <div class="formula">E<sub>PB</sub>( D<sub>SB</sub>(M) ) = M</div>
+  <div class="stepper">
+    <div class="step"><p><b>ধাপ ১ — সই করা:</b> Alice তার <b>private key S<sub>A</sub></b> দিয়ে M-কে “decrypt” করে: <code>C = D<sub>SA</sub>(M)</code>। এই C-ই সই।</p></div>
+    <div class="step"><p><b>ধাপ ২ — পাঠানো:</b> Alice পাঠায় (M, C)।</p></div>
+    <div class="step"><p><b>ধাপ ৩ — যাচাই:</b> যে কেউ Alice-এর <b>public key P<sub>A</sub></b> দিয়ে encrypt করে: <code>M′ = E<sub>PA</sub>(C)</code>। যদি M = M′ হয় → সই বৈধ ✅।</p></div>
+    <div class="step"><p><b>কেন কাজ করে?</b> S<sub>A</sub> শুধু Alice-এর কাছে আছে, তাই এমন C আর কেউ বানাতে পারবে না যাতে E<sub>PA</sub>(C) = M হয়।</p><p><b>অসুবিধা:</b> সই বার্তার সমান লম্বা! (বাস্তব জীবনের সই তো ছোট একটা দাগ।) → সমাধান Lecture 5-এ hash দিয়ে।</p></div>
+  </div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>প্রিন্সিপালের <b>সিলমোহর</b> শুধু তাঁর ড্রয়ারে থাকে (private key), কিন্তু সিলটা দেখতে কেমন তা সবাই জানে (public key)। তাই যে কেউ যাচাই করতে পারে কাগজটা আসল কি না, কিন্তু নকল বানাতে পারে না।</p></div>
+</section>
+
+<section class="topic" id="mitm">
+  <h2>Man-in-the-Middle (MITM) Attack</h2>
+  <p>Charlie (Mallory) Alice আর Bob-এর মাঝখানে বসে আছে। সে পারে: ট্রাফিক <b>দেখতে</b>, <b>বদলাতে</b>, <b>যোগ</b> করতে, <b>মুছে</b> দিতে।</p>
+  <p><b>Charlie কে হতে পারে?</b> ISP, VPN provider, কফিশপের Wi-Fi provider, connection re-route করা attacker, এমনকি অদক্ষ admin।</p>
+  <div class="box warn"><span class="label">⚠️ মূল কথা</span><p>শুধু ciphertext পাঠানো <b>confidentiality</b> দেয়, কিন্তু <b>authenticity ও integrity দেয় না</b> — attacker ciphertext আটকে বদলে দিতে পারে। Bob কীভাবে নিশ্চিত হবে যে বার্তাটা আসলেই উদ্দিষ্ট বার্তা?</p></div>
+  <h3>Signature-এর উপর MITM</h3>
+  <div class="formula">Bob (M, S)  →  Eve  (M′, S′)  →  Alice ??</div>
+  <ul>
+    <li>Eve সই S-কে বদলে S′ করে। Alice যখন S′ যাচাই করে (Bob-এর public key দিয়ে encrypt করে) — পায় M′ (আসল M নয়)।</li>
+    <li>Alice ভাবে Bob M′-এ সই করেছে!</li>
+    <li>কিন্তু Eve ফলাফল <b>বেছে নিতে পারে না</b> (decrypt করার ক্ষমতা নেই) — তাই এই আক্রমণ কাজ করে শুধু যখন <b>যেকোনো bit sequence-ই একটা বৈধ বার্তা</b>।</li>
+    <li>যেমন: public-key দিয়ে একটা <b>র‍্যান্ডম symmetric key</b> পাঠানো হলে — বদলানো key-টাও “বৈধ” দেখায়!</li>
+  </ul>
+  <div class="box story"><span class="label">📖 গল্প</span><p>ডাকপিয়ন খাম খুলে চিঠির অক্ষরগুলো এলোমেলো করে দিল। চিঠিটা বাংলায় হলে প্রাপক বুঝবে “এটা গোলমাল” (অর্থহীন)। কিন্তু চিঠিতে যদি শুধু একটা র‍্যান্ডম লকার নম্বর থাকে — বদলানো নম্বরও দেখতে স্বাভাবিক, প্রাপক টেরই পাবে না।</p></div>
+</section>
+
+<section class="topic" id="bruteforce">
+  <h2>Brute-force Attack ও Unicity Distance</h2>
+  <p>Encryption/decryption function পাবলিক, শুধু key গোপন — তাহলে সব সম্ভাব্য key দিয়ে চেষ্টা করলে? এটাই brute force।</p>
+  <ul>
+    <li>Plaintext যদি <b>র‍্যান্ডম binary</b> হয় → attacker বুঝবে না কোনটা সঠিক, আক্রমণ ব্যর্থ।</li>
+    <li>Plaintext যদি <b>প্রাকৃতিক ভাষা</b> হয় → অল্প কয়েকটা (আদর্শভাবে একটা) ফলাফলই অর্থবহ হবে।</li>
+    <li><code>NGGNPXNGQNJABAVEIVARORNPU</code> → বাতিল। <code>ATTACKATDAWNONIRVINEBEACH</code> → পেয়ে গেছি! 🎯</li>
+  </ul>
+  <div class="lab"><span class="label">🧪 Caesar-কে brute force করো</span>
+    <div class="row"><label for="bf-in">Ciphertext</label><input type="text" id="bf-in" value="DWWDFNDWGDZQ" style="flex:1"><button class="btn" id="bf-go">সব ২৬টা key চেষ্টা করো</button></div>
+    <div class="out" id="bf-out" style="max-height:300px;overflow:auto"></div>
+    <p class="flash-hint">যে লাইনে সবচেয়ে বেশি সাধারণ ইংরেজি অক্ষর (E,T,A,O…) সেটা হাইলাইট করা হয় — attacker-ও এভাবেই “অর্থবহ” টেক্সট চেনে।</p>
+  </div>
+
+  <h3>গণিতটা ধাপে ধাপে</h3>
+  <div class="stepper">
+    <div class="step"><p>ইংরেজি টেক্সট 8-bit ASCII-তে। t অক্ষরের বার্তা = <b>n = 8t</b> bit।</p><p>সম্ভাব্য n-bit array মোট <code>2<sup>8t</sup> = 2<sup>n</sup></code>।</p></div>
+    <div class="step"><p>ইংরেজির প্রতিটা অক্ষর গড়ে মাত্র <b>≈1.25 bit তথ্য</b> বহন করে (= <b>entropy of English</b>)।</p><p>অর্থবহ ইংরেজি t-byte array-এর সংখ্যা: <code>2<sup>1.25t</sup> = 2<sup>1.25n/8</sup> ≈ 2<sup>0.16n</sup></code></p></div>
+    <div class="step"><p>সাধারণভাবে কোনো ধ্রুবক 0 &lt; α &lt; 1-এর জন্য 2<sup>n</sup>-এর মধ্যে মাত্র <b>2<sup>αn</sup></b> বৈধ বার্তা।</p><p>র‍্যান্ডম plaintext অর্থবহ হওয়ার সম্ভাবনা: <code>2<sup>αn</sup>/2<sup>n</sup> = 1/2<sup>(1−α)n</sup></code> — n বাড়লে দ্রুত শূন্যের দিকে যায়।</p></div>
+    <div class="step"><p>Key-র দৈর্ঘ্য k bit → একটা ciphertext-এর জন্য <b>2<sup>k</sup></b>টা সম্ভাব্য plaintext।</p><p>এদের মধ্যে প্রত্যাশিত বৈধ বার্তার সংখ্যা: <code>2<sup>k</sup> / 2<sup>(1−α)n</sup></code></p></div>
+    <div class="step"><p>এই সংখ্যা যখন ≈ 1, তখন অনন্য বৈধ plaintext পাওয়া যায়:</p><div class="formula">n = k / (1 − α)      ← Unicity distance</div><p><b>সংজ্ঞা:</b> ciphertext-এর ন্যূনতম যত অক্ষর লাগে যাতে মাত্র একটা অর্থবহ plaintext থাকে।</p></div>
+    <div class="step"><p><b>AES-256 + English:</b> k = 256, α ≈ 0.16 → n ≈ 256/0.84 ≈ <b>304 bit ≈ 38 ASCII অক্ষর</b> — মাত্র আধা লাইন!</p><p>সিদ্ধান্ত: খুব ছোট না হলে প্রাকৃতিক ভাষার বার্তায় brute force “সঠিক উত্তর চিনতে” পারবে। (তবে 2<sup>256</sup> key চেষ্টা করাই অসম্ভব — তাই key লম্বা ও র‍্যান্ডম হতে হবে।)</p></div>
+    <div class="step"><p><b>ছোট বার্তার উদাহরণ:</b> <code>FJKFPO</code> (substitution cipher) brute force করলে আসতে পারে: thatis, ofyour, season, onyour, thatwe, thetop, thetwo, oxford, thatin, thatof… কোনটা সঠিক? <b>জানা অসম্ভব!</b> — কারণ বার্তাটা unicity distance-এর চেয়ে ছোট।</p></div>
+  </div>
+  <div class="lab"><span class="label">🧮 Unicity distance ক্যালকুলেটর</span>
+    <div class="row"><label for="uk">Key length k (bit)</label><input type="number" id="uk" value="256"><label for="ua">α</label><input type="number" id="ua" value="0.16" step="0.01" min="0.01" max="0.99"></div>
+    <div class="out" id="uout"></div>
+  </div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="2">
+    <div class="q">১) ১০০ জন মানুষ symmetric key দিয়ে প্রত্যেকে প্রত্যেকের সাথে কথা বলবে — কতগুলো key?</div>
+    <button class="opt">100</button><button class="opt">200</button><button class="opt">4950</button><button class="opt">10000</button>
+    <div class="explain">100 × 99 / 2 = 4950।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">২) Digital signature তৈরিতে Alice কোন key ব্যবহার করে?</div>
+    <button class="opt">Bob-এর public key</button><button class="opt">নিজের private key</button><button class="opt">নিজের public key</button><button class="opt">shared symmetric key</button>
+    <div class="explain">C = D<sub>SA</sub>(M) — নিজের private key দিয়ে সই, যাচাই হয় public key দিয়ে।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) শুধু ciphertext পাঠালে কোনটা নিশ্চিত হয়?</div>
+    <button class="opt">Confidentiality</button><button class="opt">Integrity</button><button class="opt">Authenticity</button><button class="opt">তিনটাই</button>
+    <div class="explain">MITM ciphertext বদলাতে পারে — integrity/authenticity নেই।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৪) কেন বাস্তবে public-key দিয়ে শুধু session key পাঠানো হয়?</div>
+    <button class="opt">Public-key বেশি নিরাপদ নয়</button><button class="opt">Symmetric key বড়</button><button class="opt">Public-key এ signature হয় না</button><button class="opt">Public-key অনেক ধীর ও key বড়</button>
+    <div class="explain">RSA 2048-bit বনাম AES 256-bit; public-key ধীর — তাই hybrid।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">৫) AES-256 ও ইংরেজির unicity distance প্রায় —</div>
+    <button class="opt">256 অক্ষর</button><button class="opt">38 অক্ষর (304 bit)</button><button class="opt">8 অক্ষর</button><button class="opt">2<sup>256</sup> অক্ষর</button>
+    <div class="explain">n = 256/(1−0.16) ≈ 304 bit ≈ 38 byte।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 স্লাইডের “Important questions” — নিজে উত্তর লিখে দেখো</span><ul>
+    <li>Hashing ও Encryption-এর পার্থক্য (hash one-way, key নেই; encryption reversible, key লাগে)।</li>
+    <li>Symmetric ও Asymmetric cryptography-র তুলনা।</li>
+    <li>Digital signature কীভাবে কাজ করে?</li>
+    <li>SSL/TLS: client-server-এর মধ্যে নিরাপদ ডেটা যোগাযোগ।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture3.html"><small>← আগের লেকচার</small>Lecture 3: Principles</a>
+  <a class="next" href="lecture5.html"><small>পরের লেকচার →</small>Lecture 5: Hash, MAC, Password</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l4.js"></script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 8 · Number Theory ও RSA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L8">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 8 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 8</div>
+  <h1>Number Theory ও RSA Cryptosystem</h1>
+  <p>Prime, GCD, Euclid, modular arithmetic, multiplicative inverse, Fermat ও Euler-এর উপপাদ্য — এগুলো দিয়ে গড়া RSA। তারপর RSA-র নিরাপত্তা, determinism, আর implementation: repeated squaring, extended Euclid, primality testing।</p>
+  <div class="chips"><span class="chip">gcd(a,b)=gcd(b,a mod b)</span><span class="chip">x⁻¹ mod n</span><span class="chip">x<sup>p−1</sup> ≡ 1</span><span class="chip">Φ(n)</span><span class="chip">C = M<sup>e</sup> mod n</span><span class="chip">Repeated squaring</span></div>
+</div>
+
+<section class="topic" id="primes">
+  <h2>Prime Number ও Factorization</h2>
+  <p><b>Prime p:</b> একটা integer, p ≥ 2, যার একমাত্র ভাজক 1 ও p। (Integer = পূর্ণসংখ্যা, ঋণাত্মকও হতে পারে, ভগ্নাংশ নয়।)</p>
+  <ul><li>2, 7, 19 → prime ✅</li><li>−3, 0, 1, 6 → prime নয় ❌</li></ul>
+  <div class="formula">Prime decomposition:  n = p1<sup>e1</sup> × p2<sup>e2</sup> × … × pk<sup>ek</sup>
+উদাহরণ:  200 = 2³ × 5²</div>
+  <div class="box exam"><span class="label">🎯 Fundamental Theorem of Arithmetic</span><p>একটা ধনাত্মক integer-এর prime decomposition <b>অনন্য</b>।</p></div>
+  <div class="lab"><span class="label">🧪 Factorizer</span>
+    <div class="row"><label for="fz">n</label><input type="number" id="fz" value="200"></div>
+    <div class="out" id="fzout"></div>
+  </div>
+</section>
+
+<section class="topic" id="gcd">
+  <h2>GCD ও Euclid-এর Algorithm</h2>
+  <p>gcd(a, b) = a ও b দুটোকেই ভাগ করে এমন <b>বৃহত্তম ধনাত্মক integer</b>।</p>
+  <div class="formula">gcd(18, 30) = 6      gcd(0, 20) = 20      gcd(−21, 49) = 7</div>
+  <p>gcd(a, b) = 1 হলে a ও b <b>relatively prime</b> (সহমৌলিক)। যেমন gcd(15, 28) = 1।</p>
+  <h3>Euclid-এর algorithm</h3>
+  <div class="formula">gcd(a, b) = gcd(b, a mod b)
+
+Algorithm EuclidGCD(a, b)
+    if b = 0  return a
+    else      return EuclidGCD(b, a mod b)</div>
+  <div class="lab"><span class="label">🧪 Euclid ধাপে ধাপে</span>
+    <div class="row"><label for="ga">a</label><input type="number" id="ga" value="412"><label for="gb">b</label><input type="number" id="gb" value="260"></div>
+    <div class="tbl-wrap"><table id="gtab"></table></div>
+    <div class="out" id="gout"></div>
+  </div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>412 × 260 সেমি একটা মেঝেতে সবচেয়ে বড় বর্গাকার টাইল বসাতে চাও যাতে কাটতে না হয়। প্রথমে 260×260 টাইল বসাও, বাকি থাকে 152×260; আবার 152×152 বসাও… শেষে 4 সেমির টাইল সব ঢেকে দেয়। gcd = 4!</p></div>
+</section>
+
+<section class="topic" id="modular">
+  <h2>Modular Arithmetic</h2>
+  <div class="formula">r = a mod n   ⇔   a = r + k·n     (k = quotient q, r = remainder)
+
+29 mod 13 = 3      (29 = 3 + 2×13)
+13 mod 13 = 0      (13 = 0 + 1×13)
+−1 mod 13 = 12     (−1 = 12 + (−1)×13)</div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>ঘড়ি হলো mod 12! এখন ১০টা, ৫ ঘণ্টা পর কয়টা? (10 + 5) mod 12 = 3টা। আর −1 mod 13 = 12 মানে ঘড়ির কাঁটা শূন্য থেকে এক ঘর পেছালে শেষ ঘরে যায়।</p></div>
+  <h3>Multiplicative inverse</h3>
+  <p>Z<sub>n</sub> = {0, 1, 2, …, n−1}। যদি <code>x·y mod n = 1</code> হয়, তাহলে y = x<sup>−1</sup> mod n।</p>
+  <div class="box exam"><span class="label">🎯 Theorem ও Corollary</span><ul><li>Z<sub>n</sub>-এর x-এর inverse থাকবে <b>যদি এবং কেবল যদি</b> gcd(x, n) = 1।</li><li>n = p prime হলে Z<sub>p</sub>-এর <b>প্রতিটা nonzero</b> উপাদানের inverse আছে।</li></ul></div>
+  <div class="lab"><span class="label">🧪 Inverse ও Power টেবিল</span>
+    <div class="row"><label for="zn">n</label><input type="number" id="zn" value="11" min="2" max="30"></div>
+    <div class="tbl-wrap"><table id="invtab"></table></div>
+    <div class="tbl-wrap"><table id="powtab"></table></div>
+    <p class="flash-hint">n = 10 দিয়ে দেখো: inverse আছে শুধু 1, 3, 7, 9-এর (যারা 10-এর সাথে সহমৌলিক)। n = 7 বা 13 (prime) দিলে সবার power কোনো এক সময় 1 হয়।</p>
+  </div>
+</section>
+
+<section class="topic" id="fermat-euler">
+  <h2>Fermat-এর Little Theorem ও Euler-এর Theorem</h2>
+  <div class="tabs">
+    <div class="tab-btns"><button>Fermat</button><button>Euler</button></div>
+    <div class="tab-pane">
+      <div class="formula">p prime, x ∈ Z<sub>p</sub> nonzero  ⇒  x<sup>p−1</sup> mod p = 1
+
+p = 5:  1⁴ mod 5 = 1    2⁴ = 16 mod 5 = 1    3⁴ = 81 mod 5 = 1    4⁴ = 256 mod 5 = 1</div>
+      <p><b>Corollary:</b> x-এর inverse = <code>x<sup>p−2</sup> mod p</code>, কারণ x · x<sup>p−2</sup> = x<sup>p−1</sup> ≡ 1।</p>
+    </div>
+    <div class="tab-pane">
+      <p><b>Z<sub>n</sub>*</b> = Z<sub>n</sub>-এর যেসব উপাদান n-এর সাথে সহমৌলিক। <b>Totient Φ(n) = |Z<sub>n</sub>*|</b>।</p>
+      <div class="formula">Z<sub>10</sub>* = {1, 3, 7, 9}    Φ(10) = 4
+p prime:  Z<sub>p</sub>* = {1, 2, …, p−1}    Φ(p) = p − 1
+
+Theorem:  x ∈ Z<sub>n</sub>*  ⇒  x<sup>Φ(n)</sup> mod n = 1
+3⁴ mod 10 = 81 mod 10 = 1     7⁴ = 2401 mod 10 = 1     9⁴ = 6561 mod 10 = 1</div>
+      <p>Fermat হলো Euler-এর বিশেষ রূপ (n = p হলে Φ(p) = p−1)।</p>
+    </div>
+  </div>
+  <div class="lab"><span class="label">🧪 Euler যাচাই</span>
+    <div class="row"><label for="eu">n</label><input type="number" id="eu" value="10" min="2" max="200"></div>
+    <div class="out" id="euout"></div>
+  </div>
+</section>
+
+<section class="topic" id="rsa">
+  <h2>RSA Cryptosystem</h2>
+  <p>উদ্ভাবক <b>Ron Rivest, Adi Shamir, Leonard Adleman</b> (1977)। ভিত্তি: দুটো বড় prime-এর গুণফলকে <b>factorize করা বাস্তবে কঠিন</b>। সবচেয়ে বহুল ব্যবহৃত cryptosystem; ২০০২ সালে তাঁরা <b>Turing Award</b> (CS-এর নোবেল) পান।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th></th><th>সাধারণ রূপ</th><th>স্লাইডের উদাহরণ</th></tr>
+    <tr><td>Setup</td><td>n = p·q (p, q বড় prime)<br>Φ(n) = (p−1)(q−1)<br>e: gcd(e, Φ(n)) = 1<br>d = e<sup>−1</sup> mod Φ(n) (d·e mod Φ(n) = 1)</td><td>p = 7, q = 17<br>n = 119<br>Φ(n) = 6 × 16 = 96<br>e = 5, d = 77 (5×77 = 385 = 4×96 + 1)</td></tr>
+    <tr><td>Keys</td><td>Public K<sub>e</sub> = (n, e); Private K<sub>d</sub> = d</td><td>Public (119, 5); Private 77</td></tr>
+    <tr><td>Encrypt</td><td>C = M<sup>e</sup> mod n</td><td>M = 19 → C = 19⁵ mod 119 = 66</td></tr>
+    <tr><td>Decrypt</td><td>M = C<sup>d</sup> mod n</td><td>66⁷⁷ mod 119 = 19 ✅</td></tr>
+  </table></div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>দুটো গোপন রঙ (p, q) মিশিয়ে একটা নতুন রঙ (n) বানানো সহজ। কিন্তু শুধু মিশ্র রঙ দেখে কোন দুটো রঙ মেশানো হয়েছে বের করা প্রায় অসম্ভব। Bob মিশ্র রঙটা সবাইকে দেয় (public), আর মূল রঙ দুটো (তাই Φ(n) ও d) গোপন রাখে।</p></div>
+  <div class="lab"><span class="label">🧪 RSA Playground</span>
+    <div class="row"><label for="rp">p</label><input type="number" id="rp" value="7"><label for="rq">q</label><input type="number" id="rq" value="17"><label for="re">e</label><input type="number" id="re" value="5"><label for="rm">M</label><input type="number" id="rm" value="19"></div>
+    <div class="out" id="rout"></div>
+  </div>
+  <h3>Correctness — কেন C<sup>d</sup> = M?</h3>
+  <div class="stepper">
+    <div class="step"><p>ধরি gcd(M, n) = 1 (p, q খুব বড়, তাই এরা M-এর গুণনীয়ক হওয়ার সম্ভাবনা খুব কম)।</p></div>
+    <div class="step"><p>e·d mod Φ(n) = 1 → কোনো integer k-এর জন্য <code>e·d = k·Φ(n) + 1</code></p></div>
+    <div class="step"><p>Euler: <code>M<sup>Φ(n)</sup> mod n = 1</code></p></div>
+    <div class="step"><div class="formula">C<sup>d</sup> mod n = M<sup>ed</sup> mod n = M<sup>kΦ(n)+1</sup> mod n
+            = M · (M<sup>Φ(n)</sup>)<sup>k</sup> mod n = M · 1<sup>k</sup> = M  ✅</div></div>
+  </div>
+</section>
+
+<section class="topic" id="rsa-security">
+  <h2>RSA-র নিরাপত্তা ও Determinism</h2>
+  <ul>
+    <li>নিরাপত্তা নির্ভর করে e ও n থেকে <b>d বের করার কঠিনতার</b> উপর।</li>
+    <li>Φ(n) = (p−1)(q−1) জানলে extended Euclid দিয়ে d = e<sup>−1</sup> mod Φ(n) সহজেই বের হয় → তাই <b>p, q গোপন রাখো</b> (বা মুছে ফেলো)।</li>
+    <li>অর্থাৎ RSA-র নিরাপত্তা = <b>n factor করার কঠিনতা</b>। যথেষ্ট বড় modulus হলে নিরাপদ।</li>
+  </ul>
+  <div class="tabs">
+    <div class="tab-btns"><button>Factoring রেকর্ড</button><button>Side channel</button><button>Determinism</button></div>
+    <div class="tab-pane">
+      <ul><li>1999: 512-bit চ্যালেঞ্জ factor হয় ৪ মাসে, 35.7 CPU-year (শত শত SGI, Sun, Pentium II মেশিন)।</li><li>2005: RSA-640 — 30টা 2.2GHz CPU-year।</li><li>2004: RSA-2048 factor করার পুরস্কার ছিল $200,000।</li><li>বর্তমান practice: <b>2,048-bit key</b>।</li></ul>
+      <div class="tbl-wrap"><table style="max-width:420px"><tr><th>দৈর্ঘ্য (bit)</th><th>PC (এক বছরে factor)</th><th>Memory</th></tr><tr><td>430</td><td>1</td><td>128MB</td></tr><tr><td>760</td><td>215,000</td><td>4GB</td></tr><tr><td>1020</td><td>342×10⁶</td><td>170GB</td></tr><tr><td>1620</td><td>1.6×10¹⁵</td><td>120TB</td></tr></table></div>
+    </div>
+    <div class="tab-pane"><p>Decryption-এর <b>সময়</b> বা CPU-র <b>বিদ্যুৎ খরচ</b> মেপে side-channel আক্রমণ। USENIX Security ’18 (Alam et al.): মোবাইল ডিভাইস থেকে, শারীরিক access ছাড়াই, কয়েক সেকেন্ডে key উদ্ধার — modular exponentiation-এর সময় প্রসেসর থেকে অনিচ্ছাকৃত <b>analog signal</b> থেকে exponent-এর bit পড়ে।</p></div>
+    <div class="tab-pane"><p>RSA <b>deterministic</b>: একই public key-তে একই M → একই C। তাই C1 = C2 হলে M1 = M2 — cryptanalyst তথ্য অনুমান করতে পারে।</p><div class="box story"><span class="label">📖 উদাহরণ</span><p>পরীক্ষার ফল এনক্রিপ্ট করে পাঠানো হচ্ছে: শুধু “PASS” বা “FAIL”। Eve নিজে দুটোকেই public key দিয়ে encrypt করে মিলিয়ে নিলেই সবার ফল জেনে যায়! সমাধান: randomization (পরের লেকচারে <b>Elgamal</b>, বাস্তবে OAEP padding)।</p></div></div>
+  </div>
+</section>
+
+<section class="topic" id="implementation">
+  <h2>RSA Implementation: কী কী algorithm লাগে</h2>
+  <div class="tbl-wrap"><table>
+    <tr><th>ধাপ</th><th>দরকারি algorithm</th></tr>
+    <tr><td>সামগ্রিক</td><td>যেকোনো আকারের বড় integer ও তাদের arithmetic</td></tr>
+    <tr><td>Encryption / Decryption</td><td>Modular power (repeated squaring)</td></tr>
+    <tr><td>Setup</td><td>নির্দিষ্ট bit-এর random number (p, q প্রার্থী) · Primality testing · GCD (e ও Φ(n) সহমৌলিক কি না) · Multiplicative inverse (e থেকে d)</td></tr>
+  </table></div>
+  <h3>১. Repeated squaring</h3>
+  <p>2<sup>1234</sup> mod 789: আগে 2<sup>1234</sup> হিসাব করা অবাস্তব (বিশাল সংখ্যা), আর ১২৩৪ বার গুণ করাও ধীর। তার বদলে বারবার বর্গ করো:</p>
+  <div class="lab"><span class="label">🧪 Repeated squaring</span>
+    <div class="row"><label for="sqx">x</label><input type="number" id="sqx" value="2"><label for="sqy">y</label><input type="number" id="sqy" value="1234"><label for="sqn">n</label><input type="number" id="sqn" value="789"></div>
+    <div class="out" id="sqout"></div>
+  </div>
+  <p>a<sup>b</sup> mod n করতে লাগে সর্বোচ্চ <b>2·log₂(b)</b> টা গুণ, আর কখনো n²-এর চেয়ে বড় সংখ্যা নিয়ে কাজ করতে হয় না।</p>
+
+  <h3>২. Extended Euclid — inverse বের করা</h3>
+  <p>যেকোনো a, b-এর জন্য এমন i, j আছে যে <code>i·a + j·b = gcd(a, b) = d</code>। যেমন a = 21, b = 15: 3 = 3×21 + (−4)×15।</p>
+  <p>x-এর inverse Z<sub>n</sub>-এ: (x, n)-এ extended Euclid চালাও → (d, i, j)। <b>d = 1 হলে i-ই inverse</b>; d &gt; 1 হলে inverse নেই।</p>
+  <div class="lab"><span class="label">🧪 Extended Euclid</span>
+    <div class="row"><label for="xa">x (বা a)</label><input type="number" id="xa" value="5"><label for="xn">n (বা b)</label><input type="number" id="xn" value="96"></div>
+    <div class="out" id="xout"></div>
+  </div>
+
+  <h3>৩. Primality testing — Fermat test</h3>
+  <div class="formula">n > 1, র‍্যান্ডম a, 1 < a < n−1:
+a<sup>n−1</sup> mod n ≠ 1  ⇒  n অবশ্যই composite
+a<sup>n−1</sup> mod n = 1  ⇒  n সম্ভবত prime</div>
+  <p>এই test-গুলো n-কে factor করে না, শুধু বলে prime কি না। 1 থেকে n-এর মধ্যে prime অন্তত <b>n / ln n</b> টা (n ≥ 4), তাই র‍্যান্ডম সংখ্যা নিয়ে logarithmic সংখ্যকবার test করলেই একটা prime পাওয়া যায়।</p>
+  <div class="lab"><span class="label">🧪 Fermat test</span>
+    <div class="row"><label for="ft">n</label><input type="number" id="ft" value="561"><button class="btn" id="ftgo">৫টা র‍্যান্ডম a দিয়ে test</button></div>
+    <div class="out" id="ftout"></div>
+    <p class="flash-hint">561 = 3×11×17 একটা Carmichael সংখ্যা — gcd(a,561)=1 এমন সব a-কে বোকা বানায়! তাই বাস্তবে Miller–Rabin ব্যবহার হয়।</p>
+  </div>
+
+  <h3>৪. সাধারণ ব্যবহার (Hybrid)</h3>
+  <div class="flow"><span class="node">র‍্যান্ডম AES key K</span><span class="arr">→ RSA দিয়ে encrypt →</span><span class="node k">RSA(K)</span><span class="arr">+</span><span class="node k">AES<sub>K</sub>(document)</span><span class="arr">→ একসাথে পাঠাও</span></div>
+  <p>RSA AES-এর চেয়ে <b>কয়েক order of magnitude ধীর</b>, তাই এভাবেই ব্যবহার হয়।</p>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="2">
+    <div class="q">১) Z<sub>10</sub>-এ কোন সংখ্যার multiplicative inverse নেই?</div>
+    <button class="opt">3</button><button class="opt">7</button><button class="opt">4</button><button class="opt">9</button>
+    <div class="explain">gcd(4,10) = 2 ≠ 1।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">২) p = 5, q = 11 হলে Φ(n) = ?</div>
+    <button class="opt">55</button><button class="opt">40</button><button class="opt">16</button><button class="opt">54</button>
+    <div class="explain">(5−1)(11−1) = 40।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) RSA-তে attacker p ও q জেনে গেলে —</div>
+    <button class="opt">Φ(n) ও তারপর d বের করতে পারে</button><button class="opt">কিছুই হয় না</button><button class="opt">শুধু e জানে</button><button class="opt">n বদলে যায়</button>
+    <div class="explain">Φ(n) = (p−1)(q−1), d = e⁻¹ mod Φ(n)।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৪) Fermat test-এ a<sup>n−1</sup> mod n = 1 এলে —</div>
+    <button class="opt">n নিশ্চিত prime</button><button class="opt">n নিশ্চিত composite</button><button class="opt">n জোড়</button><button class="opt">n সম্ভবত prime</button>
+    <div class="explain">Probabilistic — Carmichael সংখ্যা বোকা বানাতে পারে।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 পরীক্ষায় হাতে করতে হবে</span><ul><li>Euclid টেবিল (যেমন gcd(412,260))</li><li>ছোট RSA: p, q, e দিয়ে d বের করা, encrypt/decrypt</li><li>Repeated squaring (2<sup>1234</sup> mod 789 = 481)</li><li>RSA correctness proof</li></ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture7.html"><small>← আগের লেকচার</small>Lecture 7: AES</a>
+  <a class="next" href="lecture9.html"><small>পরের লেকচার →</small>Lecture 9: Elgamal, DH, Hash, Signature</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l8.js"></script>
+</body>
+</html>

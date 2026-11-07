@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 7 · AES</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L7">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 7 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 7</div>
+  <h1>AES — Advanced Encryption Standard</h1>
+  <p>DES থেকে AES-এর গল্প, 4×4 state matrix, প্রতি round-এর ৪টা ধাপ (SubBytes, ShiftRows, MixColumns, AddRoundKey), key expansion (44 word, g() ফাংশন, Rcon), আর AES-এর একমাত্র বাস্তব আক্রমণ — <b>timing side-channel</b>। নিচে একটা <b>আসল AES-128</b> আছে যেটা round-by-round দেখায়!</p>
+  <div class="chips"><span class="chip">DES/3DES</span><span class="chip">Rijndael</span><span class="chip">128-bit block</span><span class="chip">10/12/14 rounds</span><span class="chip">44/52/60 words</span><span class="chip">Timing attack</span></div>
+</div>
+
+<section class="topic" id="history">
+  <h2>Block cipher-এর ইতিহাস: DES → 3DES → AES</h2>
+  <div class="tbl-wrap"><table>
+    <tr><th></th><th>DES</th><th>Triple DES (3DES)</th><th>AES</th></tr>
+    <tr><td>সাল</td><td>IBM তৈরি, NIST গ্রহণ 1977</td><td>DES তিনবার</td><td>NIST নির্বাচন 2001 (উন্মুক্ত আন্তর্জাতিক প্রতিযোগিতা)</td></tr>
+    <tr><td>Block</td><td>64 bit</td><td>64 bit</td><td>128 bit</td></tr>
+    <tr><td>Key</td><td>56 bit</td><td>3 × 56 = 168 bit (কার্যকর)</td><td>128 / 192 / 256 bit</td></tr>
+    <tr><td>নিরাপত্তা</td><td>৯০-এর দশকের শেষ থেকে exhaustive search সম্ভব ❌</td><td>exhaustive search অসম্ভব</td><td>exhaustive search বর্তমানে অসম্ভব; <b>AES-256 পছন্দের অ্যালগরিদম</b></td></tr>
+  </table></div>
+  <div class="formula">3DES:  C = E<sub>KC</sub>( D<sub>KB</sub>( E<sub>KA</sub>(P) ) )        P = D<sub>KA</sub>( E<sub>KB</sub>( D<sub>KC</sub>(C) ) )
+KA = KB = KC হলে সাধারণ DES-এর সমান → backward compatible</div>
+  <div class="box story"><span class="label">📖 গল্প — AES প্রতিযোগিতা</span><p>১৯৯৭ সালে NIST বিশ্বব্যাপী ঘোষণা দিল: “DES-এর বদলি চাই!” পাঁচটা ফাইনালিস্ট: <b>Rijndael</b> (“Rhine doll”, বেলজিয়ামের Joan Daemen ও Vincent Rijmen), <b>MARS</b> (IBM), <b>RC6</b> (RSA Security), <b>Serpent</b> (Anderson, Biham, Knudsen), <b>Twofish</b> (Bruce Schneier-এর দল)। পুরো প্রক্রিয়া ছিল উন্মুক্ত — Open design-এর চমৎকার উদাহরণ। জিতল Rijndael → নাম হলো AES।</p></div>
+  <p>AES কাজ করে <b>128-bit block</b>-এ; key 128, 192 বা 256 bit → AES-128, AES-192, AES-256।</p>
+  <div class="tbl-wrap"><table style="max-width:460px">
+    <tr><th>Key</th><th>Rounds</th><th>Key schedule (words)</th></tr>
+    <tr><td>128 bit</td><td>10</td><td>44</td></tr>
+    <tr><td>192 bit</td><td>12</td><td>52</td></tr>
+    <tr><td>256 bit</td><td>14</td><td>60</td></tr>
+  </table></div>
+  <div class="box exam"><span class="label">🎯 সূত্র</span><p>Key schedule-এ word সংখ্যা = <b>4 × (rounds + 1)</b> → 4×11 = 44, 4×13 = 52, 4×15 = 60। (+1 কারণ শুরুতে একটা অতিরিক্ত AddRoundKey।)</p></div>
+</section>
+
+<section class="topic" id="state">
+  <h2>State Array — 16 byte-এর 4×4 ম্যাট্রিক্স</h2>
+  <p>AES প্রতিটা 128-bit block-কে <b>16টা byte</b> হিসেবে দেখে এবং <b>column-major</b> ক্রমে 4×4 ম্যাট্রিক্সে সাজায় — প্রথমে প্রথম কলাম উপর থেকে নিচে, তারপর দ্বিতীয় কলাম…</p>
+  <div class="formula">in0 in4 in8  in12          s0,0 s0,1 s0,2 s0,3
+in1 in5 in9  in13    →     s1,0 s1,1 s1,2 s1,3
+in2 in6 in10 in14          s2,0 s2,1 s2,2 s2,3
+in3 in7 in11 in15          s3,0 s3,1 s3,2 s3,3</div>
+  <p>৪ byte = ১টা <b>word</b> (32 bit)। state-এর প্রতিটা কলাম একটা word। প্রতিটা round ইনপুট state নিয়ে আউটপুট state দেয়।</p>
+  <div class="lab"><span class="label">🧪 16টা অক্ষর লিখে দেখো কীভাবে সাজায়</span>
+    <div class="row"><label for="st-in">টেক্সট (16 অক্ষর)</label><input type="text" id="st-in" value="ABCDEFGHIJKLMNOP" maxlength="16" style="font-family:var(--mono)"></div>
+    <div id="st-grid"></div>
+  </div>
+</section>
+
+<section class="topic" id="rounds">
+  <h2>প্রতি Round-এর ৪টা ধাপ</h2>
+  <div class="flow"><span class="node k">AddRoundKey (w0–w3)</span><span class="arr">→</span><span class="node">SubBytes</span><span class="arr">→</span><span class="node">ShiftRows</span><span class="arr">→</span><span class="node">MixColumns</span><span class="arr">→</span><span class="node k">AddRoundKey</span><span class="arr">× 9, তারপর শেষ round-এ MixColumns বাদ</span></div>
+  <div class="tabs">
+    <div class="tab-btns"><button>1. SubBytes</button><button>2. ShiftRows</button><button>3. MixColumns</button><button>4. AddRoundKey</button></div>
+    <div class="tab-pane">
+      <p><b>S-box substitution</b>: প্রতিটা byte-কে 16×16 lookup টেবিল থেকে বদলাও — byte-এর বাম nibble = সারি, ডান nibble = কলাম। (Lecture 6-এর S-box ধারণা!)</p>
+      <div class="formula">0x53 → সারি 5, কলাম 3 → 0xED</div>
+      <p>S-box গাণিতিকভাবে তৈরি: GF(2⁸)-এ multiplicative inverse, তারপর একটা affine transformation — এটাই AES-এর <b>non-linear</b> অংশ (confusion)।</p>
+      <div class="lab"><span class="label">🧪 S-box lookup</span>
+        <div class="row"><label for="sb-in">Byte (hex)</label><input type="text" id="sb-in" value="53" maxlength="2" style="width:70px;font-family:var(--mono)"><span class="out" id="sb-out" style="margin:0;flex:1"></span></div>
+      </div>
+    </div>
+    <div class="tab-pane">
+      <p>সরল <b>permutation</b>: প্রতিটা সারি বামে cyclically shift — সারি 0 → 0 ঘর, সারি 1 → 1 ঘর, সারি 2 → 2 ঘর, সারি 3 → 3 ঘর।</p>
+      <p>Decryption-এ উল্টো: প্রথম সারি অপরিবর্তিত, বাকিগুলো <b>ডানে</b> 1, 2, 3 ঘর।</p>
+      <div class="lab"><span class="label">🧪 ShiftRows অ্যানিমেশন</span>
+        <div id="sr-grid"></div>
+        <div class="row"><button class="btn" id="sr-go">ShiftRows প্রয়োগ করো</button><button class="btn ghost" id="sr-inv">Inverse (ডানে)</button></div>
+      </div>
+    </div>
+    <div class="tab-pane">
+      <p>প্রতিটা <b>কলামের</b> তথ্য মিশিয়ে দেয় — GF(2⁸)-এ Hill-cipher-এর মতো ম্যাট্রিক্স গুণ। প্রতিটা byte = নিজের 2 গুণ + পরের byte-এর 3 গুণ + তার পরেরটা + তার পরেরটা।</p>
+      <div class="formula">[b0]   [02 03 01 01] [s0]
+[b1] = [01 02 03 01] [s1]       (+ মানে XOR, গুণ GF(2⁸)-এ)
+[b2]   [01 01 02 03] [s2]
+[b3]   [03 01 01 02] [s3]
+
+b0,j′ = (0x02·s0,j) ⊕ (0x03·s1,j) ⊕ s2,j ⊕ s3,j</div>
+      <p>Decryption-এ inverse ম্যাট্রিক্স: <code>[0E 0B 0D 09; 09 0E 0B 0D; 0D 09 0E 0B; 0B 0D 09 0E]</code></p>
+      <div class="lab"><span class="label">🧪 একটা কলামে MixColumns</span>
+        <div class="row"><label for="mc-in">কলাম (4 hex byte)</label><input type="text" id="mc-in" value="db 13 53 45" style="font-family:var(--mono)"></div>
+        <div class="out" id="mc-out"></div>
+        <p class="flash-hint">পরিচিত টেস্ট: db 13 53 45 → 8e 4d a1 bc</p>
+      </div>
+    </div>
+    <div class="tab-pane">
+      <p>আগের ধাপের ফলাফলকে ঐ round-এর <b>round key</b>-এর সাথে XOR:</p>
+      <div class="formula">b′<sub>i,j</sub> = b<sub>i,j</sub> ⊕ k<sub>i,j</sub></div>
+      <p>মূল চ্যালেঞ্জ: একটা 128-bit key K থেকে প্রতিটা round-এর k<sub>i,j</sub> ম্যাট্রিক্স কীভাবে আসে → <b>Key Expansion</b>। XOR নিজেই নিজের inverse, তাই decryption-এও একই ধাপ।</p>
+    </div>
+  </div>
+  <div class="box story"><span class="label">📖 মনে রাখার গল্প — “চায়ের দোকানের তাস”</span><p>১৬টা তাস 4×4 সাজানো। <b>SubBytes</b>: প্রতিটা তাস একটা গোপন তালিকা দেখে অন্য তাসে বদলাও। <b>ShiftRows</b>: সারিগুলো বামে ঘোরাও (0,1,2,3)। <b>MixColumns</b>: প্রতিটা কলামের তাসগুলো ঘেঁটে মিশাও। <b>AddRoundKey</b>: গোপন চাবির নকশা উপরে চাপাও। ১০ বার করলে কেউ আর মূল সাজানো চিনতে পারবে না!</p></div>
+</section>
+
+<section class="topic" id="keyexp">
+  <h2>Key Expansion — 4 word থেকে 44 word</h2>
+  <ul>
+    <li>128-bit key-কে 4×4 byte array-তে সাজাও; প্রথম ৪ byte = w0, পরের ৪ = w1 … → [w0, w1, w2, w3]।</li>
+    <li>এগুলো বাড়িয়ে 44 word-এর schedule: w0 … w43।</li>
+    <li>[w0–w3] round শুরুর আগেই ইনপুটের সাথে XOR হয়; বাকি 40 word, প্রতি round-এ ৪টা করে, 10 round-এ।</li>
+    <li>w4–w7 = round 1-এর key, w8–w11 = round 2 …</li>
+    <li>লক্ষ্য: key-এর <b>একটা bit বদলালে</b> অনেকগুলো round key প্রভাবিত হবে।</li>
+  </ul>
+  <div class="formula">w[i+4] = w[i] ⊕ g(w[i+3])        (i যখন 4-এর গুণিতক — গ্রুপের প্রথম word)
+w[i+5] = w[i+4] ⊕ w[i+1]
+w[i+6] = w[i+5] ⊕ w[i+2]
+w[i+7] = w[i+6] ⊕ w[i+3]</div>
+  <h3>g() ফাংশন — তিন ধাপ</h3>
+  <div class="stepper">
+    <div class="step"><p><b>ধাপ ১ — RotWord:</b> 4-byte word-কে এক byte বামে cyclic rotate। <code>[a0 a1 a2 a3] → [a1 a2 a3 a0]</code></p></div>
+    <div class="step"><p><b>ধাপ ২ — SubWord:</b> প্রতিটা byte-কে SubBytes-এর একই 16×16 S-box দিয়ে বদলাও।</p></div>
+    <div class="step"><p><b>ধাপ ৩ — Rcon XOR:</b> round constant-এর সাথে XOR: <code>Rcon[i] = (RC[i], 0x00, 0x00, 0x00)</code> — ডানের তিন byte শূন্য, তাই কার্যত শুধু বাম byte-এ XOR।</p></div>
+    <div class="step"><p><b>RC-এর recursion:</b> RC[1] = 0x01, RC[j] = 0x02 · RC[j−1] (GF(2⁸)-এ)</p><div class="formula">RC: 01 02 04 08 10 20 40 80 1B 36</div><p>উদ্দেশ্য: key expansion-এর অন্য ধাপগুলোতে যে <b>symmetry</b> তৈরি হতে পারে তা ভেঙে দেওয়া।</p></div>
+  </div>
+  <p>192-bit key → 12 round, 52 word; 256-bit key → 14 round, 60 word। Block সবসময় 128 bit।</p>
+</section>
+
+<section class="topic" id="aeslab">
+  <h2>🔬 আসল AES-128 — round by round</h2>
+  <p>এটা পূর্ণাঙ্গ AES-128 (FIPS-197)। ডিফল্ট মানগুলো স্ট্যান্ডার্ডের অফিসিয়াল test vector — ফলাফল <code>69c4e0d86a7b0430d8cdb78070b4c55a</code> হওয়া উচিত।</p>
+  <div class="lab"><span class="label">🧪 AES Explorer</span>
+    <div class="row"><label for="aes-p">Plaintext (32 hex)</label><input type="text" id="aes-p" value="00112233445566778899aabbccddeeff" style="flex:1;font-family:var(--mono)"></div>
+    <div class="row"><label for="aes-k">Key (32 hex)</label><input type="text" id="aes-k" value="000102030405060708090a0b0c0d0e0f" style="flex:1;font-family:var(--mono)"></div>
+    <div class="row"><button class="btn ghost" id="aes-text">অথবা টেক্সট দিয়ে: “Two One Nine Two” / “Thats my Kung Fu”</button></div>
+    <div class="row"><label for="aes-r">Round</label><input type="range" id="aes-r" min="0" max="10" value="1"><b id="aes-rv">1</b></div>
+    <div id="aes-view"></div>
+    <div class="out" id="aes-final"></div>
+    <details class="deep"><summary>Key schedule দেখো (w0 … w43)</summary><div class="inner"><div class="out" id="aes-ks"></div></div></details>
+  </div>
+</section>
+
+<section class="topic" id="attack">
+  <h2>AES-এর উপর আক্রমণ — Timing Side-Channel</h2>
+  <p>AES অত্যন্ত নিরাপদ; একমাত্র পরিচিত <b>বাস্তব</b> আক্রমণ হলো <b>side-channel attack</b> — অ্যালগরিদমের দুর্বলতা নয়, বরং <b>implementation</b> থেকে ফাঁস হওয়া তথ্য (সময়, বিদ্যুৎ, শব্দ…) ব্যবহার করে।</p>
+  <div class="stepper">
+    <div class="step"><p>২০০৫ সালে আলাদাভাবে আবিষ্কার: <b>Bernstein</b>, এবং <b>Osvik, Shamir ও Tromer</b>।</p></div>
+    <div class="step"><p>AES দ্রুত করতে <b>lookup table</b> ব্যবহার হয়। প্রসেসরের <b>cache</b> এই টেবিলের অংশ জমা রাখে।</p></div>
+    <div class="step"><p>তাই অ্যালগরিদম চলতে কত সময় লাগে, তা থেকে বোঝা যায় টেবিলের কোন অংশ access হয়েছে (cache hit দ্রুত, miss ধীর)।</p></div>
+    <div class="step"><p>একই key দিয়ে জানা plaintext/ciphertext-এ অনেকবার চালিয়ে সময় মাপলে attacker <b>key শিখে ফেলে</b>।</p><ul><li>একই মেশিনে → <b>এক সেকেন্ডেরও কম</b>।</li><li>ভিন্ন মেশিনে → <b>কয়েক ঘণ্টা</b>।</li></ul></div>
+    <div class="step"><p><b>প্রতিরোধ:</b> AES এমনভাবে implement করো যাতে cache architecture যা-ই হোক, <b>execution time সবসময় সমান</b> (constant-time) থাকে। আধুনিক CPU-তে AES-NI হার্ডওয়্যার instruction এই সমস্যা এড়ায়।</p></div>
+  </div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>চোর তালার গোপন নম্বর জানে না, কিন্তু প্রতিটা ডায়াল ঘোরানোর সময় কান পেতে শোনে — সঠিক সংখ্যায় একটু অন্যরকম “ক্লিক” হয়। তালার নকশা নিখুঁত, কিন্তু শব্দ (side channel) সব ফাঁস করে দিল।</p></div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="1">
+    <div class="q">১) AES-256-এ কত round?</div>
+    <button class="opt">10</button><button class="opt">14</button><button class="opt">12</button><button class="opt">16</button>
+    <div class="explain">128→10, 192→12, 256→14।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">২) ShiftRows-এ তৃতীয় সারি (row 2) কত ঘর বামে যায়?</div>
+    <button class="opt">0</button><button class="opt">1</button><button class="opt">2</button><button class="opt">3</button>
+    <div class="explain">row r → r ঘর বামে।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) শেষ round-এ কোন ধাপটা বাদ যায়?</div>
+    <button class="opt">MixColumns</button><button class="opt">SubBytes</button><button class="opt">ShiftRows</button><button class="opt">AddRoundKey</button>
+    <div class="explain">শেষ round: SubBytes → ShiftRows → AddRoundKey।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৪) g() ফাংশনের ধাপ নয় কোনটা?</div>
+    <button class="opt">এক byte বামে rotate</button><button class="opt">S-box substitution</button><button class="opt">Rcon-এর সাথে XOR</button><button class="opt">MixColumns ম্যাট্রিক্স গুণ</button>
+    <div class="explain">g = RotWord → SubWord → XOR Rcon।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">৫) 3DES-এ KA = KB = KC হলে কী হয়?</div>
+    <button class="opt">নিরাপত্তা তিনগুণ</button><button class="opt">সাধারণ DES-এর সমান (backward compatible)</button><button class="opt">Decrypt হয় না</button><button class="opt">AES হয়ে যায়</button>
+    <div class="explain">E-D-E তে মাঝের D প্রথম E-কে বাতিল করে।</div>
+  </div>
+</section>
+
+<div class="pager">
+  <a href="lecture6.html"><small>← আগের লেকচার</small>Lecture 6: Classic & Block ciphers</a>
+  <a class="next" href="lecture8.html"><small>পরের লেকচার →</small>Lecture 8: Number theory & RSA</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/aes.js"></script>
+<script src="js/l7.js"></script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 9 · Elgamal, Diffie-Hellman, Hash ও Digital Signature</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L9">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 9 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 9</div>
+  <h1>Elgamal, Key Exchange, Hash ও Digital Signature</h1>
+  <p>Randomized public-key (Elgamal) ও discrete logarithm, Diffie-Hellman key exchange ও তার MITM আক্রমণ, hash-এর গঠন (Merkle–Damgård) ও birthday attack, আর RSA signature-এর nonforgeability ও mutability সমস্যা।</p>
+  <div class="chips"><span class="chip">Primitive root</span><span class="chip">Discrete log</span><span class="chip">g<sup>xy</sup> mod p</span><span class="chip">Merkle–Damgård</span><span class="chip">23 জন → 50.7%</span><span class="chip">S = M<sup>d</sup> mod n</span></div>
+</div>
+
+<section class="topic" id="generator">
+  <h2>Generator (Primitive root) ও Discrete Logarithm</h2>
+  <p>Z<sub>p</sub>-এ সব হিসাব mod p (p prime)। g-কে <b>generator / primitive root</b> বলে যদি g-এর power গুলো Z<sub>p</sub>-এর সব nonzero মান একবার করে তৈরি করে।</p>
+  <div class="formula">3 mod 7 এর power:  3⁰=1, 3¹=3, 3²=2, 3³=6, 3⁴=4, 3⁵=5, 3⁶=1   → {1,3,2,6,4,5} সব! ✅ 3 is a generator of Z7
+3 mod 11 এর power: 1, 3, 9, 5, 4, 1 …  → শুধু {1,3,9,5,4}, পুনরাবৃত্তি ❌ 3 is NOT a generator of Z11</div>
+  <ul><li>Z<sub>p</sub>-তে generator আছে <b>Φ(p−1)</b> টা — তাই কয়েকটা চেষ্টা করলেই পাওয়া যায়।</li>
+  <li>g থাকলে x = g<sup>k</sup> mod p সহজেই হিসাব করা যায় (repeated squaring)।</li>
+  <li>কিন্তু উল্টোটা — x, g, p দিয়ে k বের করা — হলো <b>discrete logarithm problem</b>, যা factoring-এর মতোই কঠিন বলে বিশ্বাস করা হয়।</li></ul>
+  <div class="box story"><span class="label">📖 গল্প</span><p>রঙ মেশানো: হলুদ রঙে g বার নীল ফোঁটা দেওয়া সহজ (power)। কিন্তু চূড়ান্ত সবুজ রঙ দেখে বলা — কত ফোঁটা দেওয়া হয়েছিল — প্রায় অসম্ভব (discrete log)।</p></div>
+  <div class="lab"><span class="label">🧪 Generator checker</span>
+    <div class="row"><label for="gg">g</label><input type="number" id="gg" value="3"><label for="gp">p</label><input type="number" id="gp" value="7"></div>
+    <div class="out" id="gout"></div>
+  </div>
+</section>
+
+<section class="topic" id="elgamal">
+  <h2>Elgamal Cryptosystem — randomized public key</h2>
+  <p>Taher Elgamal-এর আবিষ্কার। <b>Randomization</b> ব্যবহার করে — একই plaintext বারবার encrypt করলে প্রতিবার <b>ভিন্ন ciphertext</b> (RSA-র determinism সমস্যার সমাধান!)।</p>
+  <div class="stepper">
+    <div class="step"><p><b>Setup (Bob):</b> বড় র‍্যান্ডম prime p, generator g বেছে নেয়। র‍্যান্ডম x (1 থেকে p−2) নিয়ে হিসাব: <code>y = g<sup>x</sup> mod p</code></p><p>Secret key = <b>x</b>; Public key = <b>(p, g, y)</b></p></div>
+    <div class="step"><p><b>Encryption (Alice):</b> Bob-এর public key (p, g, y) নেয়, র‍্যান্ডম k (1 থেকে p−2) বাছে:</p><div class="formula">a = g<sup>k</sup> mod p
+b = M · y<sup>k</sup> mod p          Ciphertext = (a, b)</div></div>
+    <div class="step"><p><b>Decryption (Bob):</b></p><div class="formula">M = b · (a<sup>x</sup>)<sup>−1</sup> mod p</div></div>
+    <div class="step"><p><b>Correctness:</b></p><div class="formula">b·(a<sup>x</sup>)<sup>−1</sup> = M·y<sup>k</sup>·(g<sup>k</sup>)<sup>−x</sup> = M·g<sup>xk</sup>·g<sup>−kx</sup> = M  ✅</div><p>Bob-এর k জানার দরকার নেই, Alice-এর x জানার দরকার নেই। দুজনে অজান্তেই একটা <b>one-time shared key g<sup>xk</sup></b> হিসাব করেছে — Alice y<sup>k</sup> দিয়ে, Bob a<sup>x</sup> দিয়ে।</p></div>
+    <div class="step"><p><b>Security:</b> x না জেনে (a, b) decrypt কঠিন; y = g<sup>x</sup> পাবলিক, তাই x বের করা = discrete log সমাধান।</p><p class="box warn" style="margin:0"><b>সতর্কতা:</b> প্রতিটা বার্তায় <b>নতুন k</b>। k পুনরায় ব্যবহার করলে one-time pad পুনর্ব্যবহারের মতো তথ্য ফাঁস হবে।</p></div>
+  </div>
+  <div class="lab"><span class="label">🧪 Elgamal playground</span>
+    <div class="row"><label for="ep">p</label><input type="number" id="ep" value="23"><label for="eg">g</label><input type="number" id="eg" value="5"><label for="ex">Bob-এর x</label><input type="number" id="ex" value="6"><label for="em">M</label><input type="number" id="em" value="10"></div>
+    <div class="row"><button class="btn" id="eenc">Encrypt (নতুন র‍্যান্ডম k)</button></div>
+    <div class="out" id="eout"></div>
+    <p class="flash-hint">বারবার Encrypt চাপো — একই M-এর ciphertext প্রতিবার আলাদা, কিন্তু decrypt সবসময় একই M দেয়।</p>
+  </div>
+</section>
+
+<section class="topic" id="dh">
+  <h2>Key Exchange ও Diffie-Hellman</h2>
+  <p>Symmetric crypto-র আগে Alice-Bob-কে একটা গোপন key-তে একমত হতে হয়। পুরনো উপায়: একবার সরাসরি গোপনে দেখা, বা tamper-proof খামে পাঠানো। <b>Key exchange (key agreement) protocol</b>: আগের কোনো গোপন যোগাযোগ ছাড়াই <b>শুধু insecure channel</b> দিয়ে shared secret তৈরি।</p>
+  <div class="box warn"><span class="label">⚠️ গুরুত্বপূর্ণ তত্ত্ব</span><p>Adversary যদি বার্তা <b>actively বদলাতে</b> পারে তাহলে কোনো key exchange protocol সম্ভব নয় (authentication ছাড়া)। কিন্তু adversary শুধু <b>passive eavesdropping</b> করলে সম্ভব।</p></div>
+  <h3>Diffie-Hellman (Whitfield Diffie ও Martin Hellman)</h3>
+  <p>পাবলিক প্যারামিটার (attacker-সহ সবাই জানে): prime p ও generator g।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Alice</th><th class="c">Channel</th><th>Bob</th></tr>
+    <tr><td>র‍্যান্ডম x ∈ Z<sub>p</sub></td><td></td><td>র‍্যান্ডম y ∈ Z<sub>p</sub></td></tr>
+    <tr><td>X = g<sup>x</sup> mod p</td><td class="c">X →<br>← Y</td><td>Y = g<sup>y</sup> mod p</td></tr>
+    <tr><td>K1 = Y<sup>x</sup> mod p</td><td></td><td>K2 = X<sup>y</sup> mod p</td></tr>
+  </table></div>
+  <div class="formula">K1 = Y<sup>x</sup> = g<sup>yx</sup> = g<sup>xy</sup> = X<sup>y</sup> = K2 = K  (mod p)</div>
+  <p>নিরাপত্তা: X ও Y দেখে K বের করা কঠিন — x বা y উদ্ধার করা = discrete log।</p>
+  <div class="box story"><span class="label">📖 রঙের গল্প (বিখ্যাত ব্যাখ্যা)</span><p>দুজনে প্রকাশ্যে একটা সাধারণ রঙ ঠিক করল — হলুদ (g)। Alice গোপনে লাল মেশাল, Bob গোপনে নীল। মিশ্র রঙ দুটো তারা প্রকাশ্যে বিনিময় করল। এবার প্রত্যেকে অন্যের মিশ্রণে নিজের গোপন রঙ মেশাল → দুজনেরই হলুদ+লাল+নীল = একই বাদামি! Eve দুটো মিশ্র রঙ দেখেছে, কিন্তু রঙ “আলাদা” করতে পারে না।</p></div>
+  <div class="lab"><span class="label">🧪 DH Playground — Mallory চালু/বন্ধ করো</span>
+    <div class="row"><label for="dp">p</label><input type="number" id="dp" value="23"><label for="dg">g</label><input type="number" id="dg" value="5"><label for="dx">Alice x</label><input type="number" id="dx" value="6"><label for="dy">Bob y</label><input type="number" id="dy" value="15"></div>
+    <div class="row"><label><input type="checkbox" id="dm"> 😈 Mallory মাঝখানে (MITM)</label><label for="ds">s</label><input type="number" id="ds" value="3"><label for="dt">t</label><input type="number" id="dt" value="9"></div>
+    <div class="out" id="dout"></div>
+  </div>
+  <h3>DH-এর উপর MITM আক্রমণ</h3>
+  <p>Passive attacker-এর বিরুদ্ধে নিরাপদ, কিন্তু Mallory বার্তা আটকে বদলাতে পারলে: সে নিজের s, t বাছে; Alice-কে পাঠায় S = g<sup>s</sup>, Bob-কে T = g<sup>t</sup>। ফলে Alice-Mallory-র key K1 = g<sup>xs</sup>, Mallory-Bob-এর key K2 = g<sup>yt</sup>। Mallory K1 দিয়ে decrypt করে পড়ে, K2 দিয়ে encrypt করে Bob-কে পাঠায় — কেউ টের পায় না! সমাধান: <b>authentication</b> (signature/certificate)।</p>
+</section>
+
+<section class="topic" id="hash">
+  <h2>Cryptographic Hash Function — গুণ ও গঠন</h2>
+  <p>বার্তার একটা compressed <b>digest</b>, তিনটা গুণসহ: <b>deterministic, one-way, collision-resistant</b>।</p>
+  <ul>
+    <li><b>Deterministic:</b> একই ইনপুট → সবসময় একই আউটপুট।</li>
+    <li>Hash মান বার্তার চেয়ে অনেক ছোট (SHA-256 → 256 bit)।</li>
+    <li>ইনপুটের এক bit বদলালে আউটপুটের প্রতিটা bit প্রভাবিত হতে পারে (<b>diffusion</b>) — substitution, permutation, XOR, iteration ব্যবহার করে।</li>
+    <li><b>One-way:</b> M থেকে H(M) সহজ; x দেখে এমন M খোঁজা যাতে H(M) = x — কঠিন।</li>
+  </ul>
+  <div class="tabs">
+    <div class="tab-btns"><button>Weak collision resistance</button><button>Strong collision resistance</button></div>
+    <div class="tab-pane"><p><b>নির্দিষ্ট</b> একটা M দেওয়া আছে — এমন M′ ≠ M খোঁজা কঠিন যেখানে H(M′) = H(M)।</p><div class="box story"><span class="label">📖</span><p>“এই ক্লাসে <b>আমার</b> জন্মদিনে আর কারো জন্মদিন আছে?” — নির্দিষ্ট একজনের সাথে মিল।</p></div></div>
+    <div class="tab-pane"><p><b>যেকোনো</b> দুটো আলাদা M1, M2 খোঁজা কঠিন যেখানে H(M1) = H(M2)। বাস্তব hash-এর জন্য এটা প্রমাণ করা চ্যালেঞ্জিং।</p><div class="box story"><span class="label">📖</span><p>“এই ক্লাসে <b>যেকোনো দুজনের</b> জন্মদিন এক?” — অনেক সহজে ঘটে (birthday paradox)!</p></div></div>
+  </div>
+  <h3>Merkle–Damgård construction</h3>
+  <p>ভিত্তি একটা <b>compression function C(X, Y)</b>: X-এর দৈর্ঘ্য m, Y-এর দৈর্ঘ্য n, আউটপুট n bit।</p>
+  <div class="flow"><span class="node k">IV (v)</span><span class="arr">→ C(M1, v) = d1 →</span><span class="node">d1</span><span class="arr">→ C(M2, d1) = d2 →</span><span class="node">…</span><span class="arr">→ C(Mk, dk−1) →</span><span class="node b">H = dk</span></div>
+  <p>M-কে m-bit block M1…Mk-তে ভাগ করো (শেষটা দ্ব্যর্থহীনভাবে pad)। Ralph Merkle ও Ivan Damgård-এর নামে।</p>
+  <div class="lab"><span class="label">🧪 খেলনা Merkle–Damgård (block = 4 অক্ষর, digest = 8 hex)</span>
+    <div class="row"><label for="md-in">বার্তা</label><input type="text" id="md-in" value="Hello SUST CSE!" style="flex:1"></div>
+    <div class="out" id="md-out"></div>
+  </div>
+  <h3>বাস্তব hash</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Hash</th><th>m (block)</th><th>n (digest)</th><th>অবস্থা</th></tr>
+    <tr><td>SHA-256</td><td>512 bit</td><td>256 bit</td><td>✅ NIST সুপারিশকৃত</td></tr>
+    <tr><td>SHA-512</td><td>1,024 bit</td><td>512 bit</td><td>✅ NIST সুপারিশকৃত</td></tr>
+    <tr><td>MD5</td><td>—</td><td>128 bit</td><td>❌ অনিরাপদ — একই MD5-ওয়ালা ভিন্ন PDF/executable বানানো যায়</td></tr>
+  </table></div>
+</section>
+
+<section class="topic" id="birthday">
+  <h2>Birthday Attack</h2>
+  <p>Hash-কে আক্রমণের প্রধান উপায় collision resistance ভাঙা — cryptanalysis দিয়ে, অথবা brute-force <b>birthday attack</b> দিয়ে। পরিসংখ্যানের এক অবিশ্বাস্য সত্য: <b>23 জনের বেশি</b> হলে দুজনের জন্মদিন মেলার সম্ভাবনা 50%-এর বেশি; <b>60+</b> হলে প্রায় নিশ্চিত।</p>
+  <div class="stepper">
+    <div class="step"><p>P(A) = অন্তত দুজনের জন্মদিন এক — সরাসরি হিসাব কঠিন। তার বদলে P(A′) = কারোরই এক নয়। P(A) = 1 − P(A′)।</p></div>
+    <div class="step"><p>প্রথম ব্যক্তি: 365/365। দ্বিতীয়: 364/365 (প্রথমজনের থেকে আলাদা)। তৃতীয়: 363/365…</p></div>
+    <div class="step"><div class="formula">P(A′) = 365/365 × 364/365 × … × 343/365 = (1/365²³)·(365×364×…×343) = 0.492703
+P(A) = 1 − 0.492703 = 0.507297 ≈ 50.7%  > 50%</div></div>
+    <div class="step"><p><b>Hash-এ প্রয়োগ:</b> n-bit hash-এ collision পেতে 2<sup>n</sup> নয়, মাত্র প্রায় <b>2<sup>n/2</sup></b> টা র‍্যান্ডম বার্তা লাগে। তাই 128-bit MD5 আসলে ~2<sup>64</sup> নিরাপত্তা দেয়, আর SHA-256 দেয় ~2<sup>128</sup>।</p></div>
+  </div>
+  <div class="lab"><span class="label">🧪 Birthday probability</span>
+    <div class="row"><label for="bn">মানুষ সংখ্যা</label><input type="range" id="bn" min="2" max="80" value="23"><b id="bnv">23</b></div>
+    <div class="out" id="bout"></div>
+    <svg id="bchart" viewBox="0 0 400 160" style="width:100%;max-width:560px;height:auto;color:var(--ink)"></svg>
+    <div class="row"><button class="btn ghost" id="bsim">ক্লাসে ২৩ জন র‍্যান্ডম জন্মদিন — ১০০০ বার সিমুলেশন</button></div>
+    <div class="out" id="bsout"></div>
+  </div>
+</section>
+
+<section class="topic" id="signature">
+  <h2>Digital Signature ও RSA Signature</h2>
+  <p>Digital signature হলো কোনো entity-র পরিচয়কে বার্তার সাথে <b>বেঁধে দিয়ে</b> authenticity প্রমাণের উপায়। Alice private key দিয়ে S<sub>Alice</sub>(M) বানায়; Bob Alice-এর public key, M ও সই দিয়ে যাচাই করে।</p>
+  <h3>তিনটা কাঙ্ক্ষিত গুণ</h3>
+  <div class="flash-grid">
+    <div class="flash" data-front="Nonforgeability" data-back="Eve-এর পক্ষে Alice-এর নামে S<sub>Alice</sub>(M) জাল করা কঠিন"></div>
+    <div class="flash" data-front="Nonmutability" data-back="S<sub>Alice</sub>(M) থেকে অন্য বার্তা N-এর বৈধ সই বানানো কঠিন"></div>
+    <div class="flash" data-front="Non-repudiation" data-back="উপরের দুটো থাকলে — Alice পরে অস্বীকার করতে পারবে না যে সে সই করেছে"></div>
+  </div>
+  <h3>RSA signature</h3>
+  <div class="formula">Encryption:  C = M<sup>e</sup> mod n        (public key দিয়ে)
+Signature :  S = M<sup>d</sup> mod n        (private key d দিয়ে)
+Verify    :  M =? S<sup>e</sup> mod n
+কারণ      :  S<sup>e</sup> = M<sup>de</sup> = M<sup>kΦ(n)+1</sup> = M·(M<sup>Φ(n)</sup>)<sup>k</sup> = M  (mod n)</div>
+  <ul><li><b>Nonforgeability:</b> d ছাড়া M<sup>d</sup> mod n বানানো = RSA ভাঙা।</li><li><b>কিন্তু nonmutability নেই!</b> নিচে দেখো।</li></ul>
+  <div class="lab"><span class="label">🧪 RSA signature mutability আক্রমণ (n = 119, e = 5, d = 77)</span>
+    <div class="row"><label for="sm1">M1</label><input type="number" id="sm1" value="2"><label for="sm2">M2</label><input type="number" id="sm2" value="3"></div>
+    <div class="out" id="sout"></div>
+  </div>
+  <h3>সমাধান: Hash + Signature</h3>
+  <ul>
+    <li>লম্বা বার্তায় সরাসরি RSA সই অদক্ষ।</li>
+    <li>পুরনো সই গুণ করে নতুন বৈধ সই বানানো যায় (উপরে দেখলে)।</li>
+    <li>তাই বাস্তবে সই করা হয় <b>H(M)</b>-এ — H(M)·H(N) প্রায় কখনোই H(M·N)-এর সমান হবে না, তাই mutability ঝুঁকি অনেক কমে, আর ছোট hash-এ সই দ্রুতও।</li>
+  </ul>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ ও Self Reading</h2>
+  <div class="quiz" data-answer="1">
+    <div class="q">১) DH-এ p = 23, g = 5, x = 6, y = 15 হলে shared key?</div>
+    <button class="opt">8</button><button class="opt">2</button><button class="opt">19</button><button class="opt">5</button>
+    <div class="explain">X = 8, Y = 19; 19⁶ mod 23 = 2 = 8¹⁵ mod 23।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">২) Elgamal-এর নিরাপত্তা কোন সমস্যার উপর নির্ভরশীল?</div>
+    <button class="opt">Factoring</button><button class="opt">Hash collision</button><button class="opt">Unicity distance</button><button class="opt">Discrete logarithm</button>
+    <div class="explain">y = gˣ থেকে x বের করা।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) DH কোন আক্রমণে দুর্বল?</div>
+    <button class="opt">Man-in-the-middle</button><button class="opt">Passive eavesdropping</button><button class="opt">Frequency analysis</button><button class="opt">Padding oracle</button>
+    <div class="explain">Authentication না থাকায় Mallory দুজনের সাথে আলাদা key বানায়।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">৪) RSA signature-এ S1·S2 mod n কোন বার্তার বৈধ সই?</div>
+    <button class="opt">M1 + M2</button><button class="opt">M1</button><button class="opt">M1·M2</button><button class="opt">কোনোটার না</button>
+    <div class="explain">(M1·M2)<sup>d</sup> = M1<sup>d</sup>·M2<sup>d</sup> — mutability।</div>
+  </div>
+  <div class="box exam"><span class="label">📚 Self Reading (স্লাইড থেকে) — সংক্ষিপ্ত ইঙ্গিতসহ</span>
+    <details class="deep"><summary>TLS handshake-এ hashing, signature ও certificate কীভাবে একসাথে কাজ করে?</summary><div class="inner"><p>Server তার <b>certificate</b> পাঠায় (CA-র সই করা)। Client ব্রাউজারে থাকা CA public key দিয়ে সই যাচাই করে — সই আসলে certificate-এর <b>hash</b>-এর উপর। তারপর key exchange (যেমন ECDHE) — server তার DH মানে সই করে প্রমাণ দেয় যে সে-ই certificate-এর মালিক (MITM ঠেকায়)। শেষে handshake-এর সব বার্তার hash দিয়ে “Finished” বার্তা — কেউ মাঝখানে কিছু বদলায়নি তা নিশ্চিত।</p></div></details>
+    <details class="deep"><summary>HTTPS request → TLS handshake → certificate verification → key exchange: প্রতিটা ধাপ কী নিরাপত্তা যোগ করে?</summary><div class="inner"><p>Request: কোন সাইট চাই। Handshake: অ্যালগরিদমে একমত। Certificate verification: <b>authenticity</b> (সত্যিই bank.com)। Key exchange: <b>confidentiality</b>-র জন্য shared session key। এরপর symmetric encryption + MAC: <b>confidentiality ও integrity</b>।</p></div></details>
+    <details class="deep"><summary>কেন আগে asymmetric, পরে symmetric?</summary><div class="inner"><p>Asymmetric দিয়ে অপরিচিত দুই পক্ষ নিরাপদে key বিনিময় ও পরিচয় যাচাই করতে পারে, কিন্তু ধীর। Symmetric (AES) অনেক দ্রুত — বিশাল ডেটার জন্য উপযুক্ত। Hybrid = দুটোর সুবিধা (Lecture 4 ও 8)।</p></div></details>
+    <details class="deep"><summary>TLS-এর hash ভেঙে গেলে (collision সহজ) কী হারাবে?</summary><div class="inner"><p>Signature hash-এর উপর হয়, তাই collision পেলে attacker একই hash-ওয়ালা জাল certificate বানাতে পারে (MD5 দিয়ে ২০০৮-এ জাল CA certificate বানানো হয়েছিল) → <b>authenticity</b> ভাঙে, MITM সম্ভব। Handshake/MAC-এর <b>integrity</b>-ও দুর্বল হয়। এনক্রিপশন শক্ত থাকলেও লাভ নেই — কারণ তুমি হয়তো ভুল পক্ষের সাথে নিরাপদে কথা বলছ!</p></div></details>
+  </div>
+</section>
+
+<div class="pager">
+  <a href="lecture8.html"><small>← আগের লেকচার</small>Lecture 8: RSA</a>
+  <a class="next" href="lecture10.html"><small>পরের লেকচার →</small>Lecture 10: Cryptographic protocols</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l9.js"></script>
+</body>
+</html>

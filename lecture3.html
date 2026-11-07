@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 3 · Security Principles ও Access Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L3">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 3 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 3</div>
+  <h1>Security Principles ও Access Control</h1>
+  <p>১৯৭৫ সালে Saltzer ও Schroeder তাঁদের পেপার <i>“The protection of information in computer systems”</i>-এ ১০টা নীতি দিয়েছিলেন — ৫০ বছর পরেও আজকের সিস্টেম ডিজাইনের ভিত্তি এগুলোই। তারপর দেখব “কে কোন ফাইল পড়তে/লিখতে পারবে” — সেটা কম্পিউটার কীভাবে মনে রাখে।</p>
+  <div class="chips"><span class="chip">১০টি নীতি</span><span class="chip">Access Control Matrix</span><span class="chip">ACL</span><span class="chip">Capabilities</span><span class="chip">RBAC</span></div>
+</div>
+
+<!-- ============ 1 ============ -->
+<section class="topic" id="intro">
+  <h2>গল্প দিয়ে শুরু: “সাস্ট হলের তালা-চাবি”</h2>
+  <div class="box story"><span class="label">📖 গল্প</span>
+    <p>ধরো তুমি তোমার হলের নতুন প্রভোস্ট। হলে ৫০০ ছাত্র, ২০০টা রুম, একটা লাইব্রেরি, একটা স্টোর রুম, আর একটা অফিস যেখানে সবার রেজাল্ট রাখা। তোমার কাজ: <b>কে কোন রুমে ঢুকতে পারবে</b> ঠিক করা।</p>
+    <p>প্রথম দিনেই তুমি বুঝলে কয়েকটা জিনিস মাথায় রাখতে হবে — নিয়ম সহজ রাখো (না হলে দারোয়ান নিজেই গুলিয়ে ফেলবে), নতুন ছাত্রকে শুরুতে কোনো চাবি দিও না, প্রতিবার ঢোকার সময় আইডি চেক করো, স্টোর রুমে ঢুকতে দুইজনের চাবি লাগুক… এগুলোই আসলে Saltzer–Schroeder-এর নীতিগুলো! 🎯</p>
+  </div>
+  <p>এই লেকচারের দুটো ভাগ:</p>
+  <ol>
+    <li><b>Security principles</b> — ভালো সিকিউরিটি ডিজাইনের ১০টা “সোনালি নিয়ম”।</li>
+    <li><b>Access control</b> — কোন user (subject) কোন resource (object)-এ কী করতে পারবে, তা সংরক্ষণের ৪টা পদ্ধতি।</li>
+  </ol>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="topic" id="principles">
+  <h2>১০টি Security Principle <span class="en">(Saltzer &amp; Schroeder, 1975)</span></h2>
+  <p>প্রতিটা নীতির নামে ক্লিক করে খোলো — সংজ্ঞা, গল্প আর বাস্তব উদাহরণ আছে।</p>
+
+  <details class="deep" open><summary>১. Economy of mechanism — সরলতাই শক্তি</summary><div class="inner">
+    <p>সিকিউরিটি মেকানিজমের ডিজাইন ও ইমপ্লিমেন্টেশন যত <b>সহজ</b> হবে তত ভালো। সহজ ফ্রেমওয়ার্ক developer ও user দুজনেই বুঝতে পারে, আর সেটা <b>verify</b> করাও সহজ।</p>
+    <div class="box story"><span class="label">📖 গল্প</span><p>এক বাড়িওয়ালা ১৫টা আলাদা তালা, ৩টা পাসওয়ার্ড আর একটা আঙুলের ছাপ সিস্টেম লাগালেন। ফল? ভাড়াটিয়ারা বিরক্ত হয়ে পেছনের দরজা খোলা রেখে দিল। জটিলতা = লুকানো ফাঁক।</p></div>
+    <div class="box example"><span class="label">💡 উদাহরণ</span><p>লক্ষ লাইনের জটিল ফায়ারওয়াল রুলের চেয়ে কয়েকটা পরিষ্কার রুল অনেক বেশি নিরাপদ — কারণ ভুলটা চোখে পড়ে।</p></div>
+  </div></details>
+
+  <details class="deep"><summary>২. Fail-safe defaults — ডিফল্টে “না”</summary><div class="inner">
+    <p>সিস্টেমের <b>ডিফল্ট কনফিগারেশন conservative</b> হওয়া উচিত। যেমন নতুন user যোগ করলে তার default group-এর access হবে ন্যূনতম।</p>
+    <p>দুঃখজনকভাবে অনেক OS ও অ্যাপ <b>usability-কে security-র উপরে</b> রাখে — যেমন আগের web browser গুলো সার্ভার থেকে ডাউনলোড করা কোড ডিফল্টে চালিয়ে দিত।</p>
+    <div class="box story"><span class="label">📖 গল্প</span><p>নতুন ছাত্র হলে এলে তাকে প্রথম দিনেই মাস্টার-কি দেওয়া হয় না। আগে শুধু নিজের রুমের চাবি; দরকার হলে পরে আবেদন করে বাকিগুলো।</p></div>
+    <div class="box example"><span class="label">💡 উদাহরণ</span><p>নতুন রাউটারে ডিফল্ট পাসওয়ার্ড <code>admin/admin</code> → fail-safe নয়। ভালো রাউটার প্রথম লগইনে পাসওয়ার্ড বদলাতে বাধ্য করে।</p></div>
+  </div></details>
+
+  <details class="deep"><summary>৩. Complete mediation — প্রতিবার চেক</summary><div class="inner">
+    <p>Resource-এ <b>প্রতিটা access</b> authority-র সাথে মিলিয়ে চেক করতে হবে। তাই আগের authorization result cache করে রাখা (performance বাড়ানোর জন্য) সাবধানে করতে হবে, কারণ <b>permission সময়ের সাথে বদলাতে পারে</b>।</p>
+    <div class="box example"><span class="label">💡 উদাহরণ (স্লাইড থেকে)</span><p>অনলাইন ব্যাংকিং সাইট ১৫ মিনিট পর আবার লগইন করতে বলে। bKash/নগদ অ্যাপও কিছুক্ষণ পর PIN চায় — একবার চেক করেছি বলে সারাজীবন বিশ্বাস করব না।</p></div>
+    <div class="box story"><span class="label">📖 গল্প</span><p>দারোয়ান রাফি প্রথম দিন তোমার আইডি দেখে চিনে রাখল, তারপর আর কখনো দেখে না। মাঝখানে তুমি বহিষ্কার হলে — কিন্তু রাফি এখনো তোমাকে ঢুকতে দিচ্ছে! এটাই cached permission-এর বিপদ।</p></div>
+  </div></details>
+
+  <details class="deep"><summary>৪. Open design — ডিজাইন খোলা, শুধু চাবি গোপন</summary><div class="inner">
+    <p>সিস্টেমের সিকিউরিটি আর্কিটেকচার ও ডিজাইন <b>পাবলিক</b> থাকা উচিত; নিরাপত্তা নির্ভর করবে শুধু <b>cryptographic key</b> গোপন থাকার উপর। খোলা ডিজাইন হলে অনেকে পরীক্ষা করে, তাই ভুল আগে ধরা পড়ে।</p>
+    <p>এর উল্টো হলো <b>security by obscurity</b> — অ্যালগরিদম লুকিয়ে নিরাপত্তা চাওয়া; ইতিহাসে বারবার ব্যর্থ হয়েছে।</p>
+    <div class="box exam"><span class="label">🎯 মুখস্থ রাখো — Kerckhoffs’s Principle (১৯ শতক)</span><p>“A cryptosystem should be secure even if everything about the system, except the key, is public knowledge.”</p></div>
+    <div class="box story"><span class="label">📖 গল্প</span><p>তালা কোম্পানি তালার ভেতরের নকশা সবাইকে দেখায়, তবু তোমার চাবি ছাড়া কেউ খুলতে পারে না — এটাই ভালো তালা। আর যে তালা শুধু “কেউ ভেতরটা জানে না” বলে নিরাপদ, কেউ একটা খুলে দেখলেই সব শেষ।</p></div>
+    <div class="box example"><span class="label">💡 উদাহরণ</span><p>AES, RSA-এর পুরো অ্যালগরিদম পাবলিক — তবুও নিরাপদ। অন্যদিকে DVD-র CSS এনক্রিপশন গোপন রাখা হয়েছিল, reverse engineer হয়ে ভেঙে গেছে।</p></div>
+  </div></details>
+
+  <details class="deep"><summary>৫. Separation of privilege — দুই চাবির নিয়ম</summary><div class="inner">
+    <p>Restricted resource-এ ঢুকতে বা কোনো কাজ করতে <b>একাধিক শর্ত</b> পূরণ করতে হবে। দুই চাবি লাগে এমন তালা এক চাবির তালার চেয়ে বেশি robust।</p>
+    <div class="box example"><span class="label">💡 উদাহরণ</span><ul>
+      <li>ব্যাংকের লকার: তোমার চাবি + ব্যাংকের চাবি দুটোই লাগে।</li>
+      <li>স্লাইডের ছবি: বিমানের <b>two-person rule</b> (Germanwings দুর্ঘটনার পর আলোচিত) — ককপিটে সবসময় দুজন।</li>
+      <li>Two-factor authentication: পাসওয়ার্ড + OTP।</li>
+    </ul></div>
+  </div></details>
+
+  <details class="deep"><summary>৬. Least privilege — যতটুকু দরকার, ততটুকুই</summary><div class="inner">
+    <p>প্রতিটা প্রোগ্রাম ও user কাজ শেষ করতে <b>ন্যূনতম যতটুকু privilege দরকার</b>, ততটুকু নিয়েই চলবে। সামরিক বাহিনীর <b>need-to-know</b> নীতি এর উদাহরণ।</p>
+    <div class="box story"><span class="label">📖 গল্প</span><p>ক্যান্টিনের ক্যাশিয়ার শুধু ক্যাশ বাক্সের চাবি পায়, হলের অফিসের না। ক্যাশিয়ার সৎ হলেও — কেউ তার চাবি চুরি করলে ক্ষতি সীমিত থাকে।</p></div>
+    <div class="box example"><span class="label">💡 উদাহরণ</span><p>সারাদিন Administrator/root হিসেবে ব্রাউজ করা খারাপ; সাধারণ user হিসেবে কাজ করে দরকারে <code>sudo</code>। মোবাইলের টর্চ অ্যাপ কেন contacts permission চাইবে?</p></div>
+  </div></details>
+
+  <details class="deep"><summary>৭. Least common mechanism — শেয়ার কম, ঝুঁকি কম</summary><div class="inner">
+    <p>মাল্টি-ইউজার সিস্টেমে একাধিক user-এর মধ্যে <b>শেয়ার করা মেকানিজম যত কম</b> রাখা যায়। একটা ফাইল/অ্যাপ বহু user ব্যবহার করলে প্রত্যেকের <b>আলাদা channel</b> থাকা উচিত, যাতে অপ্রত্যাশিত পরিণতি না হয়।</p>
+    <div class="box story"><span class="label">📖 গল্প</span><p>পুরো হলের জন্য একটাই পানির ট্যাংক — একজন দূষিত করলে সবাই অসুস্থ। আলাদা ফিল্টার থাকলে একজনের সমস্যা আরেকজনে ছড়ায় না।</p></div>
+    <div class="box example"><span class="label">💡 উদাহরণ</span><p>শেয়ার্ড <code>/tmp</code> ফোল্ডার দিয়ে এক user আরেক user-এর ফাইলে আক্রমণ করতে পারে; তাই আধুনিক Linux প্রতি user-এর private tmp দেয়।</p></div>
+  </div></details>
+
+  <details class="deep"><summary>৮. Psychological acceptability — ব্যবহারবান্ধব নিরাপত্তা</summary><div class="inner">
+    <p>User interface সহজ ও স্বাভাবিক হবে, আর সিকিউরিটি সেটিং এমন হবে যেমনটা একজন সাধারণ user আশা করে।</p>
+    <div class="box example"><span class="label">💡 উদাহরণ</span><p>প্রতি সপ্তাহে ২০ অক্ষরের র‍্যান্ডম পাসওয়ার্ড বদলাতে বললে মানুষ সেটা কাগজে লিখে মনিটরে লাগায় 😅 — নিরাপত্তা উল্টো কমে যায়। Fingerprint unlock সহজ, তাই মানুষ সত্যিই ব্যবহার করে।</p></div>
+  </div></details>
+
+  <details class="deep"><summary>৯. Work factor — আক্রমণকারীর সামর্থ্য বুঝে খরচ</summary><div class="inner">
+    <p>সিকিউরিটি স্কিম ডিজাইনের সময় মেকানিজম ভাঙার খরচকে <b>attacker-এর resource-এর সাথে তুলনা</b> করতে হবে।</p>
+    <div class="box example"><span class="label">💡 উদাহরণ (স্লাইড থেকে)</span><p>বিশ্ববিদ্যালয়ের গ্রেড ডেটাবেস (আক্রমণকারী: কৌতূহলী ছাত্র) আর সামরিক গোপন তথ্য (আক্রমণকারী: বিদেশি গোয়েন্দা সংস্থা) — দুটোর সুরক্ষা এক মাত্রার হবে না।</p></div>
+    <div class="box story"><span class="label">📖 গল্প</span><p>সাইকেলের জন্য ২০০ টাকার তালা ঠিক আছে; সোনার দোকানে লাগে ভল্ট। চোরের সামর্থ্য অনুযায়ী তালা।</p></div>
+  </div></details>
+
+  <details class="deep"><summary>১০. Compromise recording — ঠেকাতে না পারলে রেকর্ড রাখো</summary><div class="inner">
+    <p>কখনো কখনো জটিল প্রতিরোধ ব্যবস্থার চেয়ে <b>অনুপ্রবেশের বিস্তারিত রেকর্ড রাখা</b> বেশি কাজের।</p>
+    <div class="box example"><span class="label">💡 উদাহরণ (স্লাইড থেকে)</span><p>BBC-র খবর: সাইকেল স্ট্যান্ডে “watching eyes” পোস্টার লাগানোয় সাইকেল চুরি কমে গেছে। CCTV, audit log, সার্ভারের access log — চোর জানে ধরা পড়বে, তাই নিরুৎসাহিত হয়; আর ঘটলে তদন্ত সহজ।</p></div>
+  </div></details>
+
+  <h3>🃏 ফ্ল্যাশকার্ড রিভিশন</h3>
+  <p class="flash-hint">কার্ডে ক্লিক করে উল্টাও।</p>
+  <div class="flash-grid">
+    <div class="flash" data-front="Economy of mechanism" data-back="ডিজাইন সহজ রাখো — সহজ জিনিস verify করা সহজ"></div>
+    <div class="flash" data-front="Fail-safe defaults" data-back="ডিফল্ট কনফিগারেশন conservative; নতুন user-এর minimal access"></div>
+    <div class="flash" data-front="Complete mediation" data-back="প্রতিটা access চেক করো; cached permission-এ সাবধান (15 মিনিট পর re-login)"></div>
+    <div class="flash" data-front="Open design" data-back="ডিজাইন পাবলিক, শুধু key গোপন — Kerckhoffs; security by obscurity-র বিপরীত"></div>
+    <div class="flash" data-front="Separation of privilege" data-back="একাধিক শর্ত/দুই চাবি — two-person rule"></div>
+    <div class="flash" data-front="Least privilege" data-back="কাজের জন্য ন্যূনতম অধিকার — need-to-know"></div>
+    <div class="flash" data-front="Least common mechanism" data-back="শেয়ার্ড মেকানিজম কম; প্রত্যেকের আলাদা channel"></div>
+    <div class="flash" data-front="Psychological acceptability" data-back="UI সহজ, ব্যবহারকারীর প্রত্যাশামতো সেটিং"></div>
+    <div class="flash" data-front="Work factor" data-back="ভাঙার খরচ বনাম attacker-এর resource (গ্রেড DB বনাম মিলিটারি)"></div>
+    <div class="flash" data-front="Compromise recording" data-back="প্রতিরোধের বদলে অনুপ্রবেশ রেকর্ড — CCTV, ‘watching eyes’ পোস্টার"></div>
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="topic" id="principle-quiz">
+  <h2>নীতি চেনো — পরিস্থিতিভিত্তিক কুইজ</h2>
+  <p>প্রতিটা ঘটনায় কোন নীতি মানা/ভাঙা হচ্ছে?</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">১) ব্যাংকের ভল্ট খুলতে ম্যানেজার ও ক্যাশিয়ার দুজনের আলাদা কোড লাগে।</div>
+    <button class="opt">Least privilege</button><button class="opt">Complete mediation</button><button class="opt">Separation of privilege</button><button class="opt">Open design</button>
+    <div class="explain">একাধিক শর্ত (দুটো কোড) = Separation of privilege।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">২) একটি কোম্পানি বলছে: “আমাদের এনক্রিপশন অ্যালগরিদম কেউ জানে না, তাই এটা নিরাপদ।” কোন নীতি ভাঙছে?</div>
+    <button class="opt">Open design (Kerckhoffs)</button><button class="opt">Work factor</button><button class="opt">Fail-safe defaults</button><button class="opt">Least common mechanism</button>
+    <div class="explain">এটা security by obscurity — Open design-এর ঠিক উল্টো।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">৩) নেটফ্লিক্স-জাতীয় সাইট একবার লগইনের পর পাসওয়ার্ড বদলালেও পুরনো সেশন চলতেই থাকে।</div>
+    <button class="opt">Economy of mechanism</button><button class="opt">Complete mediation</button><button class="opt">Psychological acceptability</button><button class="opt">Compromise recording</button>
+    <div class="explain">Permission বদলেছে কিন্তু পুরনো authorization cache থেকে access চলছে — complete mediation লঙ্ঘন।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৪) একটি ক্যালকুলেটর অ্যাপ ইনস্টল করার সময় SMS ও লোকেশন পারমিশন চাইছে।</div>
+    <button class="opt">Open design</button><button class="opt">Work factor</button><button class="opt">Separation of privilege</button><button class="opt">Least privilege</button>
+    <div class="explain">ক্যালকুলেটরের এসব দরকার নেই — ন্যূনতম অধিকারের নীতি ভাঙছে।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৫) নতুন অফিস কম্পিউটারে ডিফল্টে সব USB ড্রাইভ অটো-রান হয়।</div>
+    <button class="opt">Fail-safe defaults লঙ্ঘন</button><button class="opt">Least common mechanism লঙ্ঘন</button><button class="opt">Work factor মানা হয়েছে</button><button class="opt">Compromise recording মানা হয়েছে</button>
+    <div class="explain">ডিফল্ট সেটিং usability-র পক্ষে, security-র বিপক্ষে — fail-safe নয়।</div>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="topic" id="ac-intro">
+  <h2>Access Control — মূল প্রশ্ন</h2>
+  <p>কোন user কোন ফাইল read/write করতে পারবে? আমার ফাইল কি সত্যিই নিরাপদ? root হওয়ার মানে কী? — এসব প্রশ্নের উত্তর দেয় access control।</p>
+  <div class="cast">
+    <div><b>Subject 👤</b>যে কাজ করে — user, group, বা system/process।</div>
+    <div><b>Object 📁</b>যার উপর কাজ হয় — file, directory, device, resource।</div>
+    <div><b>Access right 🔑</b>read, write, copy, execute, delete, annotate …</div>
+  </div>
+  <p><b>চারটা মেকানিজম:</b></p>
+  <ol><li>Access control matrix</li><li>Access control list (ACL)</li><li>Capabilities</li><li>Role-based access control (RBAC)</li></ol>
+  <div class="box story"><span class="label">📖 মনে রাখার কৌশল</span><p>একটা বড় এক্সেল শিট কল্পনা করো: সারি = মানুষ, কলাম = ফাইল। <b>পুরো শিট</b> = Matrix। <b>একটা কলাম</b> কেটে ফাইলের গায়ে লাগিয়ে দিলে = ACL। <b>একটা সারি</b> কেটে মানুষের পকেটে দিলে = Capability। আর মানুষের বদলে <b>পদবি</b> (role) দিয়ে সারি বানালে = RBAC।</p></div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="topic" id="ac-lab">
+  <h2>Matrix · ACL · Capability — নিজে খেলে দেখো</h2>
+  <p>নিচের টেবিলে যেকোনো সেলে ক্লিক করে অধিকার বদলাও (r = read, w = write, x = execute)। তারপর ট্যাব বদলে দেখো একই তথ্য ACL আর Capability আকারে কেমন দেখায়।</p>
+  <div class="lab"><span class="label">🧪 Interactive Lab</span>
+    <div class="tabs">
+      <div class="tab-btns"><button>Matrix</button><button>ACL (কলাম ধরে)</button><button>Capability (সারি ধরে)</button></div>
+      <div class="tab-pane"><div class="tbl-wrap"><table id="acm"></table></div><p class="flash-hint">সেলে ক্লিক করলে ঘুরবে: — → r → rw → rwx → —</p></div>
+      <div class="tab-pane"><div class="out" id="acl-out"></div></div>
+      <div class="tab-pane"><div class="out" id="cap-out"></div></div>
+    </div>
+    <div class="row"><button class="btn ghost" id="q-alice">প্রশ্ন: Alice-এর সব অধিকার কী? (খরচ দেখো)</button><button class="btn ghost" id="q-file">প্রশ্ন: grades.xls কে কে access করতে পারে?</button></div>
+    <div class="out" id="ac-cost"></div>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section class="topic" id="matrix">
+  <h2>Access Control Matrix</h2>
+  <p>একটা টেবিল যা permission সংজ্ঞায়িত করে: প্রতিটা <b>সারি = subject</b>, প্রতিটা <b>কলাম = object</b>, প্রতিটা <b>সেল = ওই জোড়ার access rights</b>। খালি সেল মানে কোনো অধিকার নেই।</p>
+  <div class="tabs">
+    <div class="tab-btns"><button>✅ সুবিধা</button><button>❌ অসুবিধা</button></div>
+    <div class="tab-pane"><ul>
+      <li>যেকোনো subject-object জোড়ার অধিকার <b>দ্রুত ও সহজে</b> বের করা যায় — শুধু ঐ সারি আর কলামের সেল দেখো; <b>একটা lookup</b>।</li>
+      <li>Admin পুরো access সম্পর্ক এক নজরে, ভিজ্যুয়ালি দেখতে পারে।</li>
+    </ul></div>
+    <div class="tab-pane"><ul>
+      <li>টেবিল <b>অনেক বড়</b> হয়ে যায়: n subject, m object → n × m সেল।</li>
+      <li>উদাহরণ: ১,০০০ user ও ১০,০০,০০০ ফাইল → <b>১০০ কোটি (1 billion) সেল</b>! কোনো admin-এর এত ধৈর্য নেই, আর কেউ একসাথে দেখতেও পারবে না।</li>
+      <li>বেশিরভাগ সেল খালি (sparse) — জায়গার অপচয়।</li>
+    </ul></div>
+  </div>
+  <div class="lab"><span class="label">🧮 Matrix size ক্যালকুলেটর</span>
+    <div class="row"><label for="mn">Subjects (n)</label><input type="number" id="mn" value="1000"><label for="mm">Objects (m)</label><input type="number" id="mm" value="1000000"></div>
+    <div class="out" id="msize"></div>
+  </div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section class="topic" id="acl">
+  <h2>Access Control List (ACL)</h2>
+  <p>প্রতিটা <b>object o</b>-র জন্য একটা তালিকা L — যেখানে লেখা থাকে কোন কোন subject-এর o-তে অধিকার আছে এবং প্রত্যেকের কী অধিকার। অর্থাৎ matrix-এর <b>একটা কলাম</b>।</p>
+  <div class="formula">/etc/passwd : root: rw ; mike: r ; roberto: r
+/usr/bin/   : root: rwx ; mike: rx ; roberto: rx</div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>বিয়েবাড়ির গেটে দারোয়ানের হাতে <b>অতিথি তালিকা</b> — তালিকাটা গেটের (object) সাথে থাকে। কেউ এলে শুধু ঐ তালিকা দেখলেই হয়।</p></div>
+  <div class="tabs">
+    <div class="tab-btns"><button>✅ সুবিধা</button><button>❌ অসুবিধা</button></div>
+    <div class="tab-pane"><ul>
+      <li><b>Size ছোট</b>: মোট আকার matrix-এর non-empty সেলের সংখ্যার সমানুপাতিক।</li>
+      <li>ACL সরাসরি object-এর <b>metadata</b> হিসেবে রাখা যায় — ফাইলের header block-এ। তাই OS-কে শুধু ঐ object-এর ACL দেখতে হয়। ফাইল সিস্টেমের জন্য দারুণ।</li>
+    </ul></div>
+    <div class="tab-pane"><ul>
+      <li>কোনো <b>একজন subject-এর সব অধিকার</b> বের করা খুব অদক্ষ — সিস্টেমের <b>সব object-এর ACL</b> খুঁজতে হয়। (Matrix-এ শুধু একটা সারি দেখলেই হতো!)</li>
+      <li>কখন দরকার? যেমন — একজন user-কে সিস্টেম থেকে মুছে ফেলার সময়।</li>
+    </ul></div>
+  </div>
+  <div class="box example"><span class="label">💡 বাস্তবে</span><p>Linux-এর <code>rwxr-xr--</code> permission ও Windows NTFS-এর Security tab — দুটোই ACL ধারণা।</p></div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section class="topic" id="cap">
+  <h2>Capabilities</h2>
+  <p><b>Subject-কেন্দ্রিক</b> পদ্ধতি: প্রতিটা subject s-এর জন্য ঐ object-গুলোর তালিকা যেখানে s-এর অধিকার আছে, সাথে নির্দিষ্ট অধিকার। অর্থাৎ matrix-এর <b>একটা সারি</b>।</p>
+  <div class="formula">root    : /etc/passwd: rw ; /usr/bin/: rwx ; /admin/: rwx
+mike    : /usr/bin/: rx
+roberto : /etc/passwd: r ; /usr/bin/: rx</div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>সিনেমার <b>টিকিট</b> বা কনসার্টের <b>রিস্টব্যান্ড</b> — অধিকারটা মানুষের (subject) হাতে। যেখানে যাবে টিকিট দেখাবে।</p></div>
+  <div class="tabs">
+    <div class="tab-btns"><button>✅ সুবিধা</button><button>❌ অসুবিধা</button></div>
+    <div class="tab-pane"><ul>
+      <li>ACL-এর মতোই — শুধু non-empty জোড়াগুলো রাখতে হয়।</li>
+      <li>কোনো subject-এর <b>সব অধিকার দ্রুত</b> বের করা যায়।</li>
+      <li>s যখন o-তে অধিকার চায়, সিস্টেম শুধু s-এর capability list-এ o খোঁজে — লিস্ট ছোট হলে দ্রুত।</li>
+    </ul></div>
+    <div class="tab-pane"><ul>
+      <li>Capability সরাসরি <b>object-এর সাথে যুক্ত নয়</b>।</li>
+      <li>তাই কোনো object o-তে কার কার অধিকার আছে জানতে <b>সব subject-এর capability list</b> খুঁজতে হয়।</li>
+    </ul></div>
+  </div>
+  <div class="tbl-wrap"><table>
+    <tr><th>প্রশ্ন</th><th>Matrix</th><th>ACL</th><th>Capability</th></tr>
+    <tr><td>s কি o-তে read পারে?</td><td>এক সেল ✅</td><td>o-র তালিকা ✅</td><td>s-এর তালিকা ✅</td></tr>
+    <tr><td>s-এর সব অধিকার?</td><td>এক সারি ✅</td><td>সব ACL ❌</td><td>এক তালিকা ✅</td></tr>
+    <tr><td>o কে কে access পারে?</td><td>এক কলাম ✅</td><td>এক তালিকা ✅</td><td>সব তালিকা ❌</td></tr>
+    <tr><td>Storage</td><td>n×m ❌</td><td>non-empty ✅</td><td>non-empty ✅</td></tr>
+  </table></div>
+</section>
+
+<!-- ============ 9 ============ -->
+<section class="topic" id="rbac">
+  <h2>Role-Based Access Control (RBAC)</h2>
+  <p>আগে <b>role</b> সংজ্ঞায়িত করো, role-কে অধিকার দাও, তারপর user-কে role-এ বসাও। যেমন CSE ডিপার্টমেন্টে: faculty, student, administrative personnel, administrative manager, backup agent, lab manager, system administrator…</p>
+  <p><b>Inheritance:</b> hierarchy-তে R1 যদি R2-এর উপরে থাকে, R1 পায় R2-এর সব অধিকার।</p>
+  <div class="flow"><span class="node b">Department Chair</span><span class="arr">→ inherits →</span><span class="node b">Faculty</span><span class="arr">→ inherits →</span><span class="node">Department Member</span></div>
+  <div class="box story"><span class="label">📖 গল্প</span><p>নতুন লেকচারার এলেন — admin তাকে ৫০টা ফাইলে আলাদা আলাদা অধিকার দেয় না; শুধু “Faculty” role দিয়ে দেয়। তিনি চলে গেলে role সরালেই কাজ শেষ। এই সহজতাই RBAC-এর জাদু।</p></div>
+  <div class="lab"><span class="label">🧪 RBAC সিমুলেটর</span>
+    <div class="row"><label for="rb-role">User-কে role দাও:</label><select id="rb-role"><option value="student">Student</option><option value="faculty">Faculty</option><option value="chair">Department Chair</option><option value="sysadmin">System Administrator</option></select></div>
+    <div class="out" id="rb-out"></div>
+  </div>
+  <div class="tabs">
+    <div class="tab-btns"><button>✅ সুবিধা</button><button>❌ অসুবিধা</button></div>
+    <div class="tab-pane"><ul><li>Role-এর সংখ্যা subject-এর চেয়ে অনেক কম → শুধু role-এর অধিকার রাখা বেশি দক্ষ।</li><li>s-এর কোনো অধিকার আছে কি না দেখা সহজ: s-এর কোনো role-এ ঐ অধিকার আছে কি না দেখলেই হয়।</li></ul></div>
+    <div class="tab-pane"><ul><li>স্লাইড অনুযায়ী প্রধান অসুবিধা: প্রচলিত <b>operating system-এ (নেটিভভাবে) implement করা নেই</b>।</li></ul></div>
+  </div>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ ও পরীক্ষার প্রস্তুতি</h2>
+  <div class="quiz" data-answer="1">
+    <div class="q">১) কোনো user-কে সিস্টেম থেকে মুছতে হবে — তার সব অধিকার খুঁজে বের করতে কোন পদ্ধতিতে সবচেয়ে বেশি খরচ?</div>
+    <button class="opt">Access control matrix</button><button class="opt">ACL</button><button class="opt">Capabilities</button><button class="opt">সবগুলোতে সমান</button>
+    <div class="explain">ACL object-ভিত্তিক — সব object-এর ACL খুঁজতে হয়।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">২) 1,000 user ও 1,000,000 object হলে matrix-এ কতগুলো সেল?</div>
+    <button class="opt">10 লক্ষ</button><button class="opt">10 কোটি</button><button class="opt">100 কোটি (10⁹)</button><button class="opt">1 লক্ষ কোটি</button>
+    <div class="explain">n × m = 10³ × 10⁶ = 10⁹ = ১ বিলিয়ন।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) ফাইলের header block-এ access তথ্য রাখা যায় কোনটিতে?</div>
+    <button class="opt">ACL</button><button class="opt">Capability</button><button class="opt">RBAC</button><button class="opt">কোনোটাই নয়</button>
+    <div class="explain">ACL object-এর metadata হিসেবে রাখা যায়।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৪) RBAC-এ R1 যদি R2-এর উপরে থাকে তাহলে —</div>
+    <button class="opt">R2 পায় R1-এর অধিকার</button><button class="opt">দুজনের অধিকার আলাদা থাকে</button><button class="opt">R1-এর অধিকার বাতিল হয়</button><button class="opt">R1 পায় R2-এর অধিকার (inheritance)</button>
+    <div class="explain">উপরের role নিচের role-এর অধিকার inherit করে।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>Saltzer–Schroeder-এর যেকোনো ৫টি নীতি উদাহরণসহ ব্যাখ্যা করো।</li>
+    <li>Open design ও security by obscurity-র পার্থক্য; Kerckhoffs’s principle লেখো।</li>
+    <li>Access control matrix, ACL ও capability-র সুবিধা-অসুবিধা তুলনা করো।</li>
+    <li>RBAC কী? inheritance উদাহরণসহ ব্যাখ্যা করো।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="index.html"><small>← হোম</small>সব লেকচার</a>
+  <a class="next" href="lecture4.html"><small>পরের লেকচার →</small>Lecture 4: Crypto basics</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l3.js"></script>
+</body>
+</html>

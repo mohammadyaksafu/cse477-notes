@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 5 · Hash, MAC, Certificate ও Password</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L5">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 5 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 5</div>
+  <h1>Hash, MAC, Certificate ও Password</h1>
+  <p>Lecture 4-এর digital signature-এর সমস্যা (সই বার্তার সমান লম্বা, MITM) কীভাবে <b>hash</b> দিয়ে সমাধান হয়; তারপর MAC, digital certificate, আর মানুষের দুর্বলতম জায়গা — <b>password ও social engineering</b>।</p>
+  <div class="chips"><span class="chip">One-way</span><span class="chip">Collision-resistant</span><span class="chip">h(K‖M)</span><span class="chip">CA</span><span class="chip">94⁶</span><span class="chip">Dictionary attack</span><span class="chip">Pretexting</span></div>
+</div>
+
+<section class="topic" id="hash">
+  <h2>Cryptographic Hash Function</h2>
+  <p>Hash function হলো বার্তার একটা <b>checksum</b> (ছোট “আঙুলের ছাপ”), সাথে কিছু বিশেষ গুণ:</p>
+  <ul>
+    <li><b>One-way:</b> Y = H(M) বের করা সহজ, কিন্তু শুধু Y দেখে M বের করা কঠিন।</li>
+    <li><b>Collision-resistant:</b> এমন দুটো বার্তা M ও N খুঁজে পাওয়া কঠিন যেখানে H(M) = H(N)।</li>
+    <li>উদাহরণ: <b>SHA-1, SHA-256</b>।</li>
+  </ul>
+  <div class="box story"><span class="label">📖 গল্প</span><p>মানুষের <b>আঙুলের ছাপ</b>: মানুষ থেকে ছাপ নেওয়া সহজ, কিন্তু ছাপ দেখে পুরো মানুষটা বানানো অসম্ভব (one-way)। আর দুজন মানুষের হুবহু এক ছাপ পাওয়া প্রায় অসম্ভব (collision-resistant)।</p></div>
+  <div class="lab"><span class="label">🧪 Live SHA-256 — Avalanche effect দেখো</span>
+    <div class="row"><label for="h1">বার্তা ১</label><input type="text" id="h1" value="Pay Rahim 100 taka" style="flex:1"></div>
+    <div class="row"><label for="h2">বার্তা ২</label><input type="text" id="h2" value="Pay Rahim 900 taka" style="flex:1"></div>
+    <div class="out" id="hout"></div>
+    <p class="flash-hint">মাত্র একটা অক্ষর বদলালে hash-এর প্রায় অর্ধেক bit বদলে যায়। ইনপুট যত বড়ই হোক, আউটপুট সবসময় 256 bit।</p>
+  </div>
+</section>
+
+<section class="topic" id="hash-apps">
+  <h2>Hash-এর প্রয়োগ: Hash-then-sign ও File integrity</h2>
+  <h3>১. বার্তার digest-এ সই</h3>
+  <div class="stepper">
+    <div class="step"><p>Bob প্রথমে বার্তার hash বানায়: <code>h(M)</code></p></div>
+    <div class="step"><p>তারপর শুধু hash-টায় সই করে: <code>S = E<sub>SB</sub>(h(M))</code> — একে বলে M-এর <b>digest</b>-এ সই।</p></div>
+    <div class="step"><p>Bob পাঠায় <b>(M, S)</b> → Alice।</p></div>
+    <div class="step"><p>Alice নিজে হিসাব করে <code>h′ = h(M)</code>, আর সই খুলে পায় <code>h = D<sub>PB</sub>(S)</code>। যদি <b>h′ = h</b> → বৈধ ✅।</p></div>
+    <div class="step"><p><b>লাভ:</b> সই ছোট ও দ্রুত (hash ছোট)। <b>MITM থেকেও রক্ষা</b>:</p><ul><li>Private key ছাড়া attacker বার্তা-সই জোড়া জাল করতে পারবে না → <b>authenticity</b></li><li>Collision-resistance-এর কারণে একই digest-ওয়ালা অন্য M′ খুঁজে পাবে না → <b>integrity</b></li></ul></div>
+  </div>
+  <h3>২. OS-এর গুরুত্বপূর্ণ ফাইলের integrity</h3>
+  <ol><li>প্রতিটা গুরুত্বপূর্ণ ফাইলের hash <b>protected memory</b>-তে রাখো।</li><li>Run-time-এ ফাইলের hash আবার হিসাব করো।</li><li>দুটো মিলাও — মিললে ফাইল বদলায়নি (collision-resistance)।</li></ol>
+  <div class="box example"><span class="label">💡 বাস্তবে</span><p>সফটওয়্যার ডাউনলোড পেজে “SHA-256 checksum” দেওয়া থাকে — ডাউনলোডের পর মিলিয়ে নিলে বোঝা যায় কেউ ফাইলে ভাইরাস ঢোকায়নি। Linux-এর Tripwire/AIDE টুলও এটাই করে।</p></div>
+</section>
+
+<section class="topic" id="mac">
+  <h2>Message Authentication Code (MAC)</h2>
+  <p>Hash function + দুই পক্ষের <b>shared secret key K</b> = insecure channel-এ integrity সুরক্ষা, অনেকটা digital signature-এর মতো।</p>
+  <div class="formula">A = h(K ‖ M)          ‖ = concatenation (জোড়া লাগানো)</div>
+  <ol>
+    <li>Alice হিসাব করে A = h(K‖M) — এটাই <b>MAC</b>।</li>
+    <li>পাঠায় (M, A)।</li>
+    <li>Bob পায় (M′, A)। নিজে হিসাব করে A′ = h(K‖M′)।</li>
+    <li>A = A′ হলে Bob নিশ্চিত: বার্তা Alice-এর পাঠানো (<b>authenticity</b>) এবং পথে বদলায়নি (<b>integrity</b>)।</li>
+  </ol>
+  <div class="lab"><span class="label">🧪 MAC সিমুলেটর — Mallory বার্তা বদলালে কী হয়?</span>
+    <div class="row"><label for="mk">Shared key K</label><input type="text" id="mk" value="sust-secret-42"><label for="mm">বার্তা M</label><input type="text" id="mm" value="Transfer 500 tk to Bob" style="flex:1"></div>
+    <div class="row"><label for="mt">Mallory বদলে দিল →</label><input type="text" id="mt" value="Transfer 5000 tk to Mallory" style="flex:1"></div>
+    <div class="out" id="mout"></div>
+  </div>
+  <h3>Digital Signature বনাম MAC</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th></th><th>Digital Signature</th><th>MAC</th></tr>
+    <tr><td>Key</td><td>Asymmetric (private দিয়ে সই, public দিয়ে যাচাই)</td><td>Symmetric — একই shared key K</td></tr>
+    <tr><td>Integrity</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Authenticity</td><td>✅</td><td>✅ (key জানা দুজনের মধ্যে)</td></tr>
+    <tr><td>Non-repudiation</td><td>✅ (শুধু sender-এর কাছে private key)</td><td>❌ (দুজনের কাছেই K, তাই কে বানিয়েছে প্রমাণ নেই)</td></tr>
+    <tr><td>সমস্যা</td><td>ধীর</td><td>K নিরাপদে বিনিময় করতে হয় — যেকোনো symmetric-এর মতো</td></tr>
+  </table></div>
+</section>
+
+<section class="topic" id="cert">
+  <h2>Digital Certificate ও Certificate Authority</h2>
+  <p>Public-key crypto shared key-এর সমস্যা মেটায়, কিন্তু একটা ফাঁক থেকে যায়: <b>Alice কীভাবে জানবে যে P<sub>B</sub> সত্যিই Bob-এর public key?</b> অনেক Bob থাকলে সঠিকজন কোনটা?</p>
+  <div class="box story"><span class="label">📖 গল্প</span><p>ফেসবুকে “Bob Official” নামে একটা আইডি তোমাকে তার public key পাঠাল। আসলে এটা Mallory-র ফেক আইডি! তুমি সেই key দিয়ে encrypt করলে Mallory পড়ে ফেলবে। সমাধান? <b>জাতীয় পরিচয়পত্র</b>-এর মতো কিছু — যেটা একটা বিশ্বস্ত কর্তৃপক্ষ (নির্বাচন কমিশন) সই করে দেয়।</p></div>
+  <p><b>সমাধান:</b> একটা বিশ্বস্ত কর্তৃপক্ষ user-এর পরিচয় যাচাই করে, তারপর পরিচয় + public key একসাথে করে <b>digitally sign</b> করে। যেমন:</p>
+  <div class="box example"><span class="label">💡 স্লাইডের নমুনা</span><p><i>“The Bob who lives on 11 Main Street in Gotham City was born on August 4, 1981, and has email address bob@gotham.com, has the public key P<sub>B</sub>, and I stand by this certification until December 31, 2011.”</i></p></div>
+  <ul>
+    <li>এই বিবৃতি = <b>digital certificate</b>; বিশ্বস্ত কর্তৃপক্ষ = <b>Certificate Authority (CA)</b>।</li>
+    <li>Certificate শক্ত প্রমাণ, তাই unsigned ইমেইল বা third-party সাইট থেকে এলেও Alice বিশ্বাস করতে পারে।</li>
+    <li>কিন্তু CA-র public key-ও বিশ্বাস করতে হবে → <b>circular problem</b>!</li>
+    <li>সমাধান: CA-দের public key <b>OS/Browser-এ আগে থেকেই embed</b> করা থাকে।</li>
+  </ul>
+  <div class="flow"><span class="node k">Root CA (ব্রাউজারে বিল্ট-ইন)</span><span class="arr">→ সই করে →</span><span class="node">bob.com-এর certificate (নাম + P<sub>B</sub>)</span><span class="arr">→ Alice যাচাই →</span><span class="node b">P<sub>B</sub> বিশ্বাসযোগ্য ✅</span></div>
+  <div class="box example"><span class="label">💡 নিজে দেখো</span><p>ব্রাউজারে যেকোনো HTTPS সাইটের ঠিকানার পাশে 🔒 আইকনে ক্লিক করো → “Certificate” — issuer, valid until, public key সব দেখা যাবে।</p></div>
+</section>
+
+<section class="topic" id="passwords">
+  <h2>Password — “something you know”</h2>
+  <p>Password হলো ছোট অক্ষরের ক্রম যা দিয়ে কেউ তার জানা গোপন কিছুর মাধ্যমে নিজেকে authenticate করে। আদর্শ password <b>মনে রাখা সহজ, অনুমান করা কঠিন</b> — কিন্তু এ দুটো লক্ষ্য পরস্পরবিরোধী!</p>
+  <ul><li>মনে রাখা সহজ password → অনুমান করাও সহজ।</li><li>কঠিন র‍্যান্ডম password → মুখস্থ করা কঠিন।</li></ul>
+  <div class="box example"><span class="label">💡 স্লাইডের কৌশল — বাক্য থেকে password</span><p>“<b>M</b>ark <b>t</b>ook <b>L</b>isa <b>t</b>o <b>D</b>isneyland <b>o</b>n <b>M</b>arch <b>15</b>” → <code>MtLtDoM15</code> → আরও নিরাপদ: <code>MtL+DoM15</code></p><p>বাংলায়: “<b>আ</b>মি <b>সা</b>স্টে <b>২০২২</b> সালে <b>ভ</b>র্তি হই!” → <code>AS2022vH!</code></p></div>
+  <p><b>Strong password-এ থাকে:</b> UPPER/lower case, special character, সংখ্যা — কমপক্ষে ৩টা গ্রুপ থেকে। স্লাইডের উদাহরণগুলো বিচার করো: <code>Seattle1</code>, <code>M1ke03</code>, <code>P@$$w0rd</code>, <code>TD2k5secV</code> — নিচের টুলে বসিয়ে দেখো!</p>
+
+  <div class="lab"><span class="label">🧪 Password search-space ও crack-time ক্যালকুলেটর</span>
+    <div class="row"><label for="pw">Password</label><input type="text" id="pw" value="P@$$w0rd" style="flex:1"></div>
+    <div class="row"><label for="gps">Attacker-এর গতি (guess/সেকেন্ড)</label><select id="gps"><option value="1000">1,000 (অনলাইন, ১ms এ ১টা)</option><option value="1e9" selected>1 বিলিয়ন (GPU)</option><option value="1e12">1 ট্রিলিয়ন (GPU ক্লাস্টার)</option></select></div>
+    <div class="out" id="pwout"></div>
+  </div>
+
+  <h3>Password complexity — ৬ অক্ষরের password</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Character set</th><th>আকার</th><th>সম্ভাব্য password (৬ অক্ষর)</th></tr>
+    <tr><td>শুধু সংখ্যা</td><td>10</td><td>10⁶ = 1,000,000</td></tr>
+    <tr><td>UPPER <b>অথবা</b> lower</td><td>26</td><td>26⁶ = 308,915,776</td></tr>
+    <tr><td>UPPER <b>এবং</b> lower</td><td>52</td><td>52⁶ = 19,770,609,664</td></tr>
+    <tr><td>32 special character</td><td>32</td><td>32⁶ = 1,073,741,824</td></tr>
+    <tr><td>94 practical symbol (52+10+32)</td><td>94</td><td>94⁶ = 689,869,781,056</td></tr>
+    <tr><td>ASCII 7-bit</td><td>128</td><td>128⁶ = 4,398,046,511,104 (≈4 ট্রিলিয়ন)</td></tr>
+  </table></div>
+  <div class="box exam"><span class="label">🎯 মনে রাখো</span><p>সম্ভাব্য password = <b>(character set-এর আকার)<sup>দৈর্ঘ্য</sup></b>। দৈর্ঘ্য বাড়ানো (exponent) সেট বাড়ানোর চেয়েও বেশি শক্তিশালী। “অদ্ভুত অক্ষর password-কে নিরাপদ করে।”</p></div>
+</section>
+
+<section class="topic" id="attacks">
+  <h2>Dictionary Attack ও Social Engineering</h2>
+  <h3>Dictionary attack</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>উৎস</th><th>সংখ্যা</th></tr>
+    <tr><td>সাধারণ ইংরেজি শব্দ</td><td>&lt; 50,000</td></tr>
+    <tr><td>সাধারণ first name</td><td>1,000</td></tr>
+    <tr><td>পোষা প্রাণীর নাম</td><td>1,000</td></tr>
+    <tr><td>সাধারণ last name</td><td>10,000</td></tr>
+    <tr><td>জন্মদিন/বার্ষিকী (প্রায় সব জীবিত মানুষের)</td><td>36,525</td></tr>
+    <tr><td><b>মোট dictionary</b></td><td><b>&lt; 100,000</b></td></tr>
+  </table></div>
+  <p>প্রতি মিলিসেকেন্ডে ১টা চেষ্টা → 100,000 ms = <b>100 সেকেন্ড</b> — ২ মিনিটও না! 😱</p>
+  <div class="box example"><span class="label">🛡️ সমাধান</span><ul><li>নির্দিষ্ট সময়ে নির্দিষ্ট সংখ্যক চেষ্টার সীমা (rate limiting)।</li><li>নির্দিষ্ট সংখ্যক ভুলের পর account lock — যেমন ATM ৩ বার ভুল PIN দিলে কার্ড আটকে যায়।</li></ul></div>
+
+  <h3>Social engineering — “মানুষই দুর্বলতম লিংক”</h3>
+  <p>কম্পিউটার সিকিউরিটিকে পাশ কাটাতে <b>মানুষকে</b> ব্যবহার করার কৌশল।</p>
+  <div class="tabs">
+    <div class="tab-btns"><button>Pretexting</button><button>Baiting</button><button>Quid pro quo</button></div>
+    <div class="tab-pane"><p><b>একটা বানানো গল্প</b> বলে admin/operator-কে দিয়ে গোপন তথ্য বের করা।</p><div class="box story"><span class="label">📖 উদাহরণ</span><p>“আমি পাসওয়ার্ড ভুলে গেছি, ১০ মিনিট পর মিটিং! প্লিজ আমার পছন্দমতো পাসওয়ার্ড রিসেট করে দিন!” — অথবা “আমি bKash অফিস থেকে বলছি, আপনার অ্যাকাউন্ট বন্ধ হয়ে যাবে, OTP টা বলুন।”</p></div></div>
+    <div class="tab-pane"><p><b>“উপহার”</b>-এর লোভ দেখিয়ে অনিরাপদ কাজ করানো।</p><div class="box story"><span class="label">📖 উদাহরণ</span><p>পার্কিং লটে “TOP SECRET – Salary 2025” লেখা একটা USB ড্রাইভ ফেলে রাখা। কৌতূহলী কর্মচারী অফিসের কম্পিউটারে লাগাবেই!</p></div></div>
+    <div class="tab-pane"><p><b>“কিছুর বিনিময়ে কিছু”</b> — সেবা দেওয়ার প্রস্তাব, বিনিময়ে কিছু চাওয়া।</p><div class="box story"><span class="label">📖 উদাহরণ</span><p>“আমি helpdesk agent, আপনার কম্পিউটার মারাত্মক বিপদে! আমাকে remote access দিন, ঠিক করে দিচ্ছি।”</p></div></div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">ক্যাম্পাসে ফ্রি “Wi-Fi password লিস্ট” লেখা পেনড্রাইভ পাওয়া গেল। এটা কোন কৌশল?</div>
+    <button class="opt">Pretexting</button><button class="opt">Baiting</button><button class="opt">Quid pro quo</button><button class="opt">Dictionary attack</button>
+    <div class="explain">লোভনীয় “উপহার” দিয়ে ফাঁদ = Baiting।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">কেউ ফোন করে বলল “আমি তোমার ডিপার্টমেন্টের নতুন IT অফিসার, রেজিস্ট্রেশনের জন্য তোমার পোর্টাল পাসওয়ার্ড লাগবে।”</div>
+    <button class="opt">Pretexting</button><button class="opt">Baiting</button><button class="opt">Quid pro quo</button><button class="opt">Brute force</button>
+    <div class="explain">বানানো পরিচয় ও গল্প = Pretexting।</div>
+  </div>
+</section>
+
+<section class="topic" id="usability">
+  <h2>Security Usability</h2>
+  <p>একটা নিরাপদ সিস্টেমকে অবশ্যই <b>ব্যবহারযোগ্য</b> হতে হবে — কারণ user-এর কাছে security প্রায়ই <b>দ্বিতীয় লক্ষ্য</b> (সে আসলে ইমেইল পাঠাতে চায়, এনক্রিপ্ট করতে না)।</p>
+  <p>Security usability: security গবেষক, মনোবিজ্ঞানী ও কম্পিউটার ইঞ্জিনিয়ারদের মিলিত ক্ষেত্র।</p>
+  <div class="box exam"><span class="label">📚 Homework — পেপার দুটো পড়ো</span><ul>
+    <li><b>Whitten et al., “Why Johnny Can’t Encrypt”</b>, USENIX ’99 — এই ক্ষেত্রের সূচনা পেপার (PGP ব্যবহার করতে সাধারণ মানুষ ব্যর্থ হয়)।</li>
+    <li><b>Bonneau et al., “Passwords and the Evolution of Imperfect Authentication”</b>।</li>
+  </ul></div>
+  <div class="flash-grid">
+    <div class="flash" data-front="One-way" data-back="H(M) সহজ, H থেকে M কঠিন"></div>
+    <div class="flash" data-front="Collision-resistant" data-back="H(M)=H(N) এমন M≠N খোঁজা কঠিন"></div>
+    <div class="flash" data-front="MAC সূত্র" data-back="A = h(K ‖ M)"></div>
+    <div class="flash" data-front="CA-র circular problem সমাধান" data-back="CA-র public key OS/Browser-এ embed"></div>
+    <div class="flash" data-front="94⁶" data-back="≈ 690 বিলিয়ন — ৬ অক্ষরের password, 94 symbol"></div>
+    <div class="flash" data-front="Dictionary size" data-back="&lt;100,000 → 1 ms/চেষ্টা হলে 100 সেকেন্ড"></div>
+  </div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="2">
+    <div class="q">১) Hash-এর digest-এ সই করলে integrity নিশ্চিত হয় কোন গুণের জন্য?</div>
+    <button class="opt">One-way</button><button class="opt">Deterministic</button><button class="opt">Collision-resistance</button><button class="opt">Private key</button>
+    <div class="explain">একই digest-ওয়ালা অন্য বার্তা পাওয়া যায় না।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">২) MAC কোনটা দিতে পারে না?</div>
+    <button class="opt">Integrity</button><button class="opt">Authenticity</button><button class="opt">দুটোই দেয়</button><button class="opt">Non-repudiation</button>
+    <div class="explain">দুজনের কাছেই একই key, তাই কে MAC বানিয়েছে তৃতীয় পক্ষের কাছে প্রমাণ করা যায় না।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) Certificate-এর “circular problem” কী?</div>
+    <button class="opt">CA-র public key-কেও বিশ্বাস করতে হয়</button><button class="opt">Certificate expire হয়</button><button class="opt">Hash collision</button><button class="opt">Private key হারিয়ে যায়</button>
+    <div class="explain">সমাধান: CA public key OS/browser-এ আগে থেকে রাখা।</div>
+  </div>
+</section>
+
+<div class="pager">
+  <a href="lecture4.html"><small>← আগের লেকচার</small>Lecture 4: Crypto basics</a>
+  <a class="next" href="lecture6.html"><small>পরের লেকচার →</small>Lecture 6: Classic & Block ciphers</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/sha256.js"></script>
+<script src="js/l5.js"></script>
+</body>
+</html>

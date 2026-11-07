@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 10 · Cryptographic Protocols</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L10">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 10 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 10</div>
+  <h1>Cryptographic Protocols</h1>
+  <p>একটা চিন্তা-পরীক্ষা (দুই তালার বাক্স) থেকে protocol-এর ধারণা, XOR দিয়ে সেটা বানানোর চেষ্টা ও কেন তা ভেঙে পড়ে, protocol notation, লক্ষ্য, আক্রমণের ধরন, আর protocol বিশ্লেষণের প্রশ্ন।</p>
+  <div class="chips"><span class="chip">A → B : M</span><span class="chip">Commutative cipher</span><span class="chip">XOR</span><span class="chip">Unicity · Integrity · Authenticity</span><span class="chip">Replay · MITM · Interleaving</span></div>
+</div>
+
+<section class="topic" id="thought">
+  <h2>চিন্তা-পরীক্ষা: Ivan-কে দামি জিনিস পাঠাও</h2>
+  <div class="box story"><span class="label">📖 গল্প</span><p>তোমার বন্ধু Ivan এমন এক দেশে থাকে যেখানে পুলিশ সব চিঠি খোলে। তোমাদের দুজনের কাছে কোনো <b>শেয়ার করা চাবি নেই</b>। কীভাবে একটা দামি জিনিস নিরাপদে পাঠাবে? — শারীরিকভাবে ভাবো!</p></div>
+  <p>সমাধান: এমন একটা বাক্স যার কড়ায় (hasp) কয়েকটা তালা লাগানো যায়।</p>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">🧑 তুমি</span><span class="arr">📦🔒<sub>তোমার</sub> →</span><span class="node">🧔 Ivan</span></div><p><b>ধাপ ১:</b> জিনিস বাক্সে রেখে <b>নিজের তালা</b> লাগিয়ে Ivan-কে পাঠাও। পুলিশ খুলতে পারে না।</p></div>
+    <div class="step"><div class="flow"><span class="node">🧑 তুমি</span><span class="arr">← 📦🔒<sub>তোমার</sub>🔒<sub>Ivan</sub></span><span class="node">🧔 Ivan</span></div><p><b>ধাপ ২:</b> Ivan তার <b>নিজের তালা</b>ও লাগিয়ে বাক্স ফেরত পাঠায়। এখন দুটো তালা।</p></div>
+    <div class="step"><div class="flow"><span class="node">🧑 তুমি</span><span class="arr">📦🔒<sub>Ivan</sub> →</span><span class="node">🧔 Ivan</span></div><p><b>ধাপ ৩:</b> তুমি <b>নিজের তালা খুলে</b> আবার পাঠাও। এখন শুধু Ivan-এর তালা।</p></div>
+    <div class="step"><div class="flow"><span class="node b">🧔 Ivan 📦✨</span></div><p><b>ধাপ ৪:</b> Ivan নিজের তালা খুলে বাক্স খোলে। 🎉 পুরো যাত্রায় বাক্স কখনো তালাহীন ছিল না, আর কোনো চাবি বিনিময় হয়নি!</p></div>
+  </div>
+  <p>এই পদ্ধতিটাই একটা <b>protocol</b>: একটা যোগাযোগ-সংক্রান্ত লক্ষ্য অর্জনের জন্য <b>কাঠামোবদ্ধ সংলাপ</b>।</p>
+  <h3>Security protocol-এর লক্ষ্য</h3>
+  <ul><li>গোপনে কিছু পাঠানো,</li><li>শত্রুভাবাপন্ন/অবিশ্বস্ত পরিবেশে,</li><li>যখন দুই পক্ষের আগে থেকে কোনো শেয়ার করা secret/key নেই।</li></ul>
+  <p>ইন্টারনেটে: দামি জিনিস = গোপন বার্তা, তালা = উপযুক্ত key সহ cryptographic algorithm।</p>
+</section>
+
+<section class="topic" id="commute">
+  <h2>ধাঁধা: cipher-কে কোন বৈশিষ্ট্য থাকতে হবে?</h2>
+  <p>কম্পিউটারে এটা কাজ করতে হলে cipher-এর একটা বিশেষ বৈশিষ্ট্য লাগে। ভাবো… তারপর খোলো।</p>
+  <details class="deep"><summary>উত্তর দেখো</summary><div class="inner">
+    <p>কল্পনা করো Ivan কড়ায় তালা না লাগিয়ে তোমার বাক্সটাকে <b>আরেকটা তালাবদ্ধ বাক্সের ভেতরে</b> রাখল। তাহলে protocol ভেঙে যায় — তুমি তার বাক্সের ভেতরে হাত ঢুকিয়ে নিজের তালা খুলতে পারবে না!</p>
+    <p>এনক্রিপশনে বাইরেরটা না খুলে ভেতরেরটা খোলা যায় তখনই, যখন cipher গুলো <b>commute</b> করে:</p>
+    <div class="formula">{{M}<sub>K1</sub>}<sub>K2</sub> = {{M}<sub>K2</sub>}<sub>K1</sub></div>
+    <p>বেশিরভাগ encryption algorithm-এর এই গুণ নেই। কিন্তু একটার আছে — <b>XOR (⊕)</b>!</p>
+  </div></details>
+  <div class="box story"><span class="label">📖 উপমা</span><p>মোজা আর জুতা: আগে মোজা, পরে জুতা পরলে জুতা না খুলে মোজা খোলা যায় না (non-commutative)। কিন্তু দুই হাতে দুটো চুড়ি — যে কোনোটা আগে খোলা যায় (commutative)।</p></div>
+</section>
+
+<section class="topic" id="xorproto">
+  <h2>XOR দিয়ে Thought-experiment protocol</h2>
+  <p>K<sub>a</sub> = A-এর র‍্যান্ডম string, K<sub>b</sub> = B-এর র‍্যান্ডম string, দুটোই M-এর সমান লম্বা।</p>
+  <div class="formula">1.  A → B : M ⊕ Ka
+2.  B → A : (M ⊕ Ka) ⊕ Kb
+3.  A → B : ((M ⊕ Ka) ⊕ Kb) ⊕ Ka  =  M ⊕ Kb</div>
+  <p>ধাপ ৩-এ দুটো K<sub>a</sub> “কাটাকাটি” হয়ে যায়, থাকে M ⊕ K<sub>b</sub> — B নিজের K<sub>b</sub> দিয়ে সহজেই খোলে।</p>
+  <div class="box warn"><span class="label">❓ এটা কি নিরাপদ?</span><p>না! যে eavesdropper তিনটা বার্তাই জমিয়ে রাখে, সে এদের XOR combination দিয়ে <b>M, K<sub>a</sub>, K<sub>b</sub> তিনটাই</b> বের করতে পারে। নিচের simulator-এ নিজে যাচাই করো।</p></div>
+  <div class="lab"><span class="label">🧪 Three-pass XOR protocol + Eve</span>
+    <div class="row"><label for="xm">গোপন বার্তা M</label><input type="text" id="xm" value="SUST" maxlength="12" style="font-family:var(--mono)"><button class="btn" id="xgo">নতুন র‍্যান্ডম Ka, Kb দিয়ে চালাও</button></div>
+    <div class="out" id="xout"></div>
+    <div class="row"><button class="btn ghost" id="eve">🕵️ Eve-এর আক্রমণ দেখাও</button></div>
+    <div class="out" id="eout"></div>
+  </div>
+  <details class="deep"><summary>হাতে-কলমে প্রমাণ (পরীক্ষার জন্য)</summary><div class="inner">
+    <div class="formula">ধরি  m1 = M⊕Ka,   m2 = M⊕Ka⊕Kb,   m3 = M⊕Kb
+m1 ⊕ m2 = Kb        (M ও Ka কাটা যায়)
+m2 ⊕ m3 = Ka
+m1 ⊕ m2 ⊕ m3 = M⊕Ka ⊕ M⊕Ka⊕Kb ⊕ M⊕Kb = M   ✅</div>
+    <p>কারণ XOR-এ x ⊕ x = 0 এবং x ⊕ 0 = x।</p>
+  </div></details>
+</section>
+
+<section class="topic" id="protocols">
+  <h2>Cryptographic Protocol — সংজ্ঞা ও বৈশিষ্ট্য</h2>
+  <p>ইন্টারনেটে প্রায় সবকিছুই protocol-এর মাধ্যমে ঘটে। <b>Internet protocol</b> = দুই বা ততোধিক পক্ষের কাঠামোবদ্ধ সংলাপ, যা যোগাযোগের <b>syntax, semantics ও synchronization</b> নিয়ন্ত্রণ করে। <b>Cryptographic protocol</b> = cryptographic mechanism ব্যবহার করে কোনো security-সংক্রান্ত কাজ সম্পন্ন করে এমন protocol।</p>
+  <p>সব cryptographic protocol-এর মিল:</p>
+  <ul><li>কয়েকজন <b>principal</b> বার্তা বিনিময় করে,</li><li>কোনো security function অর্জনের চেষ্টা করে,</li><li>শত্রুভাবাপন্ন, অনিরাপদ পরিবেশে চলে।</li></ul>
+  <p>Protocol-কে দৃঢ়প্রতিজ্ঞ attacker-এর বিরুদ্ধেও robust ও নির্ভরযোগ্য হতে হবে।</p>
+  <h3>লক্ষ্যসমূহ (Goals)</h3>
+  <div class="flash-grid">
+    <div class="flash" data-front="Unicity" data-back="Secret শুধু ঠিক দুই পক্ষের মধ্যে শেয়ার্ড"></div>
+    <div class="flash" data-front="Integrity" data-back="বার্তা অপরিবর্তিত অবস্থায় পৌঁছেছে"></div>
+    <div class="flash" data-front="Authenticity" data-back="বার্তার উৎসের দাবি সত্য"></div>
+    <div class="flash" data-front="Confidentiality" data-back="Eavesdropper বার্তার বিষয়বস্তু পড়তে পারে না"></div>
+    <div class="flash" data-front="Non-repudiation of origin" data-back="প্রেরক পাঠানোর কথা অস্বীকার করতে পারে না"></div>
+    <div class="flash" data-front="Non-repudiation of receipt" data-back="প্রাপক পাওয়ার কথা অস্বীকার করতে পারে না"></div>
+  </div>
+  <div class="box story"><span class="label">📖 রেজিস্টার্ড ডাকের উপমা</span><p>সিলমোহর অক্ষত (integrity), প্রেরকের ঠিকানা আসল (authenticity), খাম খোলা যায় না (confidentiality), প্রেরকের রসিদ (non-repudiation of origin), আর প্রাপকের সই করা প্রাপ্তিস্বীকার কার্ড (non-repudiation of receipt)।</p></div>
+</section>
+
+<section class="topic" id="notation">
+  <h2>Protocol Notation</h2>
+  <div class="formula">A → B : M        principal A, principal B-কে M বার্তা পাঠায়</div>
+  <p>Distributed প্রকৃতি ও malicious actor-এর কারণে কোনো গ্যারান্টি নেই যে B বার্তাটা পায়, এমনকি আশাও করছে। Protocol-এর একটা <b>temporal</b> দিক আছে: B বার্তা না পাওয়া পর্যন্ত সাড়া দিতে পারে না, আর সাধারণত আগের ধাপে অংশ না নিলে B বার্তার আশাও করে না।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Notation</th><th>অর্থ</th></tr>
+    <tr><td><code>A</code></td><td>entity A-এর নাম</td></tr>
+    <tr><td><code>r<sub>A</sub></code></td><td>A-এর তৈরি random value (nonce)</td></tr>
+    <tr><td><code>t<sub>A</sub></code></td><td>A-এর তৈরি timestamp</td></tr>
+    <tr><td><code>(m1.m2…mn)</code></td><td>বার্তাগুলোর concatenation</td></tr>
+    <tr><td><code>{m}<sub>K</sub></code> / <code>E(K, m)</code></td><td>key K দিয়ে এনক্রিপ্ট করা m</td></tr>
+    <tr><td><code>H(m)</code></td><td>hash function H দিয়ে m-এর hash</td></tr>
+    <tr><td><code>K<sub>A</sub></code> / <code>K<sub>A</sub><sup>−1</sup></code></td><td>A-এর public key / private key</td></tr>
+  </table></div>
+  <h3>উদাহরণ — বলো তো এটা কী protocol?</h3>
+  <div class="formula">A → B : {{K}<sub>Ka⁻¹</sub>}<sub>Kb</sub>
+B → A : {{K}<sub>Kb⁻¹</sub>}<sub>Ka</sub></div>
+  <details class="deep"><summary>উত্তর ও ব্যাখ্যা</summary><div class="inner">
+    <p><b>A, B-এর সাথে একটা গোপন key K শেয়ার করে, এবং প্রতিটা পক্ষ অন্যের কাছে authenticated হয়।</b></p>
+    <ul><li>ভেতরে <code>{K}<sub>Ka⁻¹</sub></code> = A-এর private key দিয়ে K-তে সই → B জানে এটা A-এর পাঠানো (authenticity)।</li><li>বাইরে <code>{…}<sub>Kb</sub></code> = B-এর public key দিয়ে এনক্রিপ্ট → শুধু B খুলতে পারে (confidentiality)।</li><li>দ্বিতীয় বার্তায় B একইভাবে সই করে K ফেরত দেয় → A নিশ্চিত হয় B পেয়েছে ও B-ই উত্তর দিচ্ছে।</li></ul>
+  </div></details>
+</section>
+
+<section class="topic" id="analysis">
+  <h2>Protocol বিশ্লেষণ ও আক্রমণ</h2>
+  <p>Implementation-এর অনেক বিষয় (বার্তা পরিবহনের mechanism, decryption সফল হলো কীভাবে বোঝে, multi-component বার্তা parse, principal-এর নামের রূপ, public key বিতরণ) আমরা আপাতত উপেক্ষা করে protocol-কে <b>abstract</b>-ভাবে দেখব।</p>
+  <div class="tabs">
+    <div class="tab-btns"><button>বিশ্লেষণের প্রশ্ন</button><button>আক্রমণ-সংক্রান্ত প্রশ্ন</button></div>
+    <div class="tab-pane"><ul><li>Protocol-এর লক্ষ্য কী?</li><li>আসলে কী অর্জন করে? ঘোষিত লক্ষ্য কি পূরণ হয়?</li><li>অপ্রয়োজনীয় ধাপ/বার্তা আছে কি?</li><li>কী কী অনুমান (assumption) করা হয়েছে?</li><li>যা খোলা পাঠানো যেত তা কি অযথা এনক্রিপ্ট করে?</li><li>আক্রমণযোগ্য কি? আক্রমণ দেখতে কেমন হবে?</li></ul></div>
+    <div class="tab-pane"><ul><li>কোনটাকে “আক্রমণ” বলব?</li><li>Authentication ও secrecy দুটোই নিশ্চিত কি?</li><li>কোনো পক্ষকে impersonate করা যায়?</li><li>আগের exchange-এর বার্তা ঢোকানো যায় (replay)?</li><li>Attacker কী টুল ব্যবহার করতে পারে?</li><li>কোনো key ফাঁস হলে পরিণতি কী?</li></ul></div>
+  </div>
+  <h3>আক্রমণের ধরন</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>আক্রমণ</th><th>কী করে</th><th>বাস্তব উদাহরণ</th></tr>
+    <tr><td><b>Known-key</b></td><td>আগে ব্যবহৃত কিছু key পেয়ে সেই তথ্য দিয়ে ক্ষতি</td><td>পুরনো session key ফাঁস → সেই সময়ের রেকর্ড করা ট্রাফিক পড়া</td></tr>
+    <tr><td><b>Replay</b></td><td>বার্তা রেকর্ড করে পরে আবার পাঠানো</td><td>গাড়ির রিমোট-চাবির সিগন্যাল রেকর্ড করে পরে দরজা খোলা; “৫০০ টাকা পাঠাও” বার্তা ১০ বার replay</td></tr>
+    <tr><td><b>Impersonation</b></td><td>বৈধ কোনো পক্ষের পরিচয় ধারণ</td><td>অন্যের নামে লগইন</td></tr>
+    <tr><td><b>Man-in-the-Middle</b></td><td>দুই পক্ষের মাঝে বসে প্রত্যেককে বলে “আমিই অপরজন”</td><td>DH-এ Mallory (Lecture 9)</td></tr>
+    <tr><td><b>Interleaving</b></td><td>চলমান protocol run-এ ভুয়া বার্তা ঢুকিয়ে ব্যাহত/বিকৃত করা</td><td>দুটো সমান্তরাল session-এর বার্তা মিশিয়ে একটাকে দিয়ে আরেকটার উত্তর বানানো</td></tr>
+  </table></div>
+  <div class="box example"><span class="label">🛡️ সাধারণ প্রতিরক্ষা</span><p>Replay ঠেকাতে <b>nonce (r<sub>A</sub>)</b> ও <b>timestamp (t<sub>A</sub>)</b>; MITM ঠেকাতে <b>signature/certificate</b>; known-key-এর ক্ষতি সীমিত রাখতে প্রতি session-এ নতুন key।</p></div>
+  <div class="quiz" data-answer="1">
+    <div class="q">Mallory গতকালের “দরজা খোলো” এনক্রিপ্টেড কমান্ড রেকর্ড করে আজ আবার পাঠাল। কোন আক্রমণ?</div>
+    <button class="opt">Known-key</button><button class="opt">Replay</button><button class="opt">Interleaving</button><button class="opt">Impersonation</button>
+    <div class="explain">রেকর্ড করে পরে পাঠানো = Replay। সমাধান: nonce/timestamp।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">Attacker একটা চলমান protocol run-এ নিজের তৈরি ভুয়া বার্তা ঢুকিয়ে দিল যাতে protocol ভুল দিকে যায়।</div>
+    <button class="opt">Replay</button><button class="opt">Known-key</button><button class="opt">Interleaving</button><button class="opt">Brute force</button>
+    <div class="explain">Spurious বার্তা inject করা = Interleaving attack।</div>
+  </div>
+</section>
+
+<section class="topic" id="keypoints">
+  <h2>Attacker মডেল ও মূল কথা</h2>
+  <div class="box warn"><span class="label">😈 Attacker সম্পর্কে ধরে নাও</span><p>Protocol ডিজাইনার ধরে নেবে attacker <b>সব ট্রাফিক দেখতে পারে</b> এবং <b>নিজের বার্তা ঢোকাতে পারে</b>। Protocol-কে এমন দৃঢ় ও সম্পদশালী attacker-এর বিরুদ্ধেও টিকতে হবে।</p></div>
+  <ul>
+    <li>Distributed সিস্টেম, তাই protocol <b>অত্যন্ত asynchronous</b>।</li>
+    <li>কোনো পক্ষ চলমান run সম্পর্কে শুধু নিজের পাঠানো ও পাওয়া বার্তাটুকুই জানে।</li>
+    <li>Initiator ছাড়া অন্যরা প্রথম বার্তা না পাওয়া পর্যন্ত জানেই না যে তারা অংশ নিচ্ছে।</li>
+    <li>প্রতিটা বার্তা এমন রূপে হবে যা প্রাপক চিনতে ও সাড়া দিতে পারে।</li>
+    <li>প্রতিটা protocol কোনো cryptographic লক্ষ্য পূরণ করবে ও security function সম্পন্ন করবে।</li>
+  </ul>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="0">
+    <div class="q">১) Lock-box protocol ইলেকট্রনিকভাবে কাজ করতে cipher-এর কী বৈশিষ্ট্য লাগে?</div>
+    <button class="opt">Commutativity</button><button class="opt">Determinism</button><button class="opt">One-way</button><button class="opt">Padding</button>
+    <div class="explain">{{M}K1}K2 = {{M}K2}K1।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">২) XOR three-pass protocol-এ m1 ⊕ m2 = ?</div>
+    <button class="opt">M</button><button class="opt">Ka</button><button class="opt">M ⊕ Kb</button><button class="opt">Kb</button>
+    <div class="explain">(M⊕Ka) ⊕ (M⊕Ka⊕Kb) = Kb।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">৩) প্রাপক “আমি বার্তা পাইনি” বলে অস্বীকার করতে পারবে না — কোন লক্ষ্য?</div>
+    <button class="opt">Non-repudiation of origin</button><button class="opt">Non-repudiation of receipt</button><button class="opt">Unicity</button><button class="opt">Integrity</button>
+    <div class="explain">Receipt = প্রাপ্তি।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">৪) {K}<sub>Ka⁻¹</sub> মানে কী?</div>
+    <button class="opt">A-এর public key দিয়ে encrypt</button><button class="opt">K-এর hash</button><button class="opt">A-এর private key দিয়ে K-তে সই</button><button class="opt">B-এর key</button>
+    <div class="explain">Ka⁻¹ = A-এর private key।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>Lock-box thought experiment ব্যাখ্যা করো; কেন commutative cipher লাগে?</li>
+    <li>XOR three-pass protocol লেখো ও দেখাও eavesdropper কীভাবে M, Ka, Kb বের করে।</li>
+    <li>Cryptographic protocol-এর ৬টা লক্ষ্য লেখো।</li>
+    <li>Known-key, replay, impersonation, MITM, interleaving আক্রমণ ব্যাখ্যা করো।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture9.html"><small>← আগের লেকচার</small>Lecture 9: Elgamal, DH, Hash</a>
+  <a class="next" href="index.html"><small>শেষ! →</small>হোমে ফিরে যাও</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l10.js"></script>
+</body>
+</html>
