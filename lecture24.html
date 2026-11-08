@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 24 · Web Security I</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L24">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 24 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 24</div>
+  <h1>Web Security I — HTTPS, Certificate, DOM ও Session</h1>
+  <p>ওয়েব কীভাবে চলে (HTML + HTTP), HTTP কেন অনিরাপদ, HTTPS/TLS কীভাবে সমাধান করে, digital certificate ও তার hierarchy, EV certificate, CRL, semantic attack, তারপর dynamic HTML, DOM, JavaScript ও HTTP session (hidden field)।</p>
+  <div class="chips"><span class="chip">HTTPS = HTTP + SSL/TLS</span><span class="chip">CA · Root · Self-signed</span><span class="chip">CRL</span><span class="chip">0ntest.com</span><span class="chip">DOM tree</span><span class="chip">Session hijacking</span></div>
+</div>
+
+<section class="topic" id="htmlhttp">
+  <h2>HTML ও HTTP: ওয়েব কীভাবে চলে</h2>
+  <p>ওয়েব (WWW) প্রায় সবকিছু বদলে দিয়েছে — ব্যাংকিং, কেনাকাটা, শিক্ষা, যোগাযোগ, খবর… এর ভিত্তি দুটো প্রযুক্তি: <b>HTML</b> ও <b>HTTP</b>। ওয়েব = ওয়েবসাইটের সমষ্টি; সাইট = web page; page লেখা হয় HTML-এ; browser HTML interpret করে দেখায়।</p>
+  <h3>HTML-এর বৈশিষ্ট্য</h3>
+  <ul><li>Static document description language</li><li>অন্য page-এ link ও reference দিয়ে ছবি embed</li><li>User input যায় <b>form</b> দিয়ে</li><li>Extension: plugin দিয়ে PDF/ভিডিও; JavaScript/Java দিয়ে dynamic content — যা user-এর সাথে interact করে, browser interface বদলায়, এমনকি <b>client কম্পিউটারের পরিবেশে access</b> পায় (→ নিরাপত্তা ঝুঁকি)</li></ul>
+  <div class="formula">&lt;i&gt;italics&lt;/i&gt;  &lt;b&gt;bold&lt;/b&gt;
+&lt;ul&gt;&lt;li&gt;first-item&lt;/li&gt;&lt;li&gt;second-item&lt;/li&gt;&lt;/ul&gt;
+&lt;a href="web-page-URL"&gt;Description&lt;/a&gt;      ← hyperlink
+&lt;script&gt;Computer code&lt;/script&gt;               ← scripting
+&lt;img src="URL-of-an-image"&gt;                  ← embedded image</div>
+  <h3>URL টাইপ করার পর কী হয়</h3>
+  <div class="stepper">
+    <div class="step"><p><b>১.</b> User browser-এ web address (DNS name) টাইপ করে।</p></div>
+    <div class="step"><p><b>২.</b> Browser আগে <b>local DNS cache</b> দেখে; না পেলে DNS server-কে জিজ্ঞেস করে IP বের করে।</p></div>
+    <div class="step"><p><b>৩.</b> Web server-এর নির্দিষ্ট port-এ TCP connection — HTTP-র জন্য <b>port 80</b>।</p></div>
+    <div class="step"><p><b>৪.</b> HTTP request পাঠায়; server HTML page সহ HTTP response দেয়।</p></div>
+    <div class="step"><p><b>৫.</b> Browser page render করে। এক page দেখতে আসলে <b>অনেকগুলো HTTP request</b> লাগতে পারে — প্রতিটা ছবির জন্য আলাদা request। (Browser-এ “View Source” দিয়ে HTML দেখা যায়।)</p></div>
+  </div>
+</section>
+
+<section class="topic" id="insecure">
+  <h2>HTTP কেন অনিরাপদ</h2>
+  <ul>
+    <li>ডিফল্টে TCP port 80 দিয়ে, <b>কোনো encryption নেই</b> — সব <b>clear</b>-এ যায়।</li>
+    <li>Packet আটকাতে পারলে attacker ব্যবহারকারীর পাঠানো সব তথ্য পায়, এমনকি MITM হয়ে <b>বদলাতেও</b> পারে।</li>
+    <li>তাই password, credit card নম্বর, Social Security নম্বর পাঠানোর জন্য অনুপযুক্ত।</li>
+    <li>এছাড়া web server-এর <b>পরিচয় নিশ্চিত করা কঠিন</b> — তুমি কি সত্যিই ঠিক সার্ভারের সাথে কথা বলছ, নাকি attacker তার ভান করছে?</li>
+  </ul>
+  <div class="box exam"><span class="label">🎯 দুটো সমস্যা → দুটো সমাধান</span><p>(১) Confidentiality/integrity নেই → <b>encrypted channel</b>। (২) Server-এর identity নেই → <b>certificate</b>। HTTPS দুটোই দেয়।</p></div>
+</section>
+
+<section class="topic" id="https">
+  <h2>HTTPS / TLS</h2>
+  <p><b>HTTPS</b> = HTTP over SSL। Syntax-এ HTTP-র মতোই, কিন্তু নিচে একটা নিরাপত্তা স্তর — <b>SSL</b> (Secure Socket Layer) বা নতুন <b>TLS</b> (Transport Layer Security)। এরা certificate দিয়ে (১) server-এর identity যাচাই করে, (২) browser ও server-এর মধ্যে encrypted channel তৈরি করে।</p>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">🌐 Browser</span><span class="arr">ClientHello: আমি AES, ChaCha20, SHA-256… পারি →</span><span class="node b">🖥️ Server</span></div><p><b>১.</b> Browser HTTPS session চায় এবং নিজের সমর্থিত cipher ও hash function-এর তালিকা দেয়।</p></div>
+    <div class="step"><div class="flow"><span class="node">🌐 Browser</span><span class="arr">← ServerHello: AES + SHA-256 নিলাম</span><span class="node b">🖥️ Server</span></div><p><b>২.</b> Server দুজনেরই সমর্থিত <b>সবচেয়ে শক্তিশালী</b> cipher ও hash বেছে জানায়।</p></div>
+    <div class="step"><div class="flow"><span class="node">🌐 Browser</span><span class="arr">← 📜 Certificate (public key সহ)</span><span class="node b">🖥️ Server</span></div><p><b>৩.</b> Server তার certificate পাঠায়, যাতে server-এর public key আছে। <b>৪.</b> Browser certificate-এর authenticity যাচাই করে।</p></div>
+    <div class="step"><div class="flow"><span class="node">🌐 Browser</span><span class="arr">{random R}<sub>server public key</sub> →</span><span class="node b">🖥️ Server<br><small>private key দিয়ে খোলে</small></span></div><p><b>৫.</b> Browser একটা random number server-এর public key দিয়ে encrypt করে পাঠায়; server private key দিয়ে খোলে।</p></div>
+    <div class="step"><div class="flow"><span class="node">🌐 K</span><span class="arr">🔒 E<sub>K</sub>(HTTP msg ‖ MAC) ⇄</span><span class="node b">🖥️ K</span></div><p><b>৬.</b> দুজনে R থেকে একই <b>shared secret</b> বানায়। এটা দিয়ে: পরের প্রতিটা বার্তা <b>symmetric encryption</b> (confidentiality) ও <b>MAC</b> (integrity)। এরপর সাধারণ HTTP চলে — প্রতিটা HTTP বার্তায় MAC লাগিয়ে পুরোটা encrypt।</p></div>
+  </div>
+  <div class="box story"><span class="label">📖 সংযোগ</span><p>এটা Lecture 4-এর <b>hybrid encryption</b>: ধীর public-key দিয়ে শুধু key বিনিময়, তারপর দ্রুত symmetric। আর Lecture 5-এর certificate + MAC — সব একসাথে!</p></div>
+</section>
+
+<section class="topic" id="cert">
+  <h2>Digital Certificate ও Hierarchy</h2>
+  <p>Certificate server-এর public key দেয় এবং সাইটের <b>identity</b> প্রমাণ করে। এটা একটা বিশ্বস্ত তৃতীয় পক্ষ — <b>Certificate Authority (CA)</b> — তার private key দিয়ে সই করে। সাইটের মালিক CA-কে <b>Certificate Signing Request (CSR)</b> ও ফি দেয়; CA পরিচয় ও domain-এর মালিকানা যাচাই করে সই করে।</p>
+  <div class="box exam"><span class="label">🎯 এক লাইনে</span><p>Web server certificate = issuer (CA)-র একটা <b>attestation</b>: subject (সাইটের মালিক প্রতিষ্ঠান) + domain name + server-এর public key একসাথে বাঁধা।</p></div>
+  <h3>Certificate-এর field</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Field</th><th>উদাহরণ</th></tr>
+    <tr><td>Issuer CA-র নাম</td><td>DigiCert Global G2 TLS RSA SHA256 2020 CA1</td></tr>
+    <tr><td>Serial number (ওই CA-র সব certificate-এ unique)</td><td>0A:3B:…</td></tr>
+    <tr><td>Expiration date</td><td>2026-12-31</td></tr>
+    <tr><td>সাইটের domain name</td><td>www.paypal.com</td></tr>
+    <tr><td>প্রতিষ্ঠান ও অবস্থান</td><td>PayPal, Inc., San Jose, US</td></tr>
+    <tr><td>Server-এর public key cryptosystem</td><td>1,024-bit RSA</td></tr>
+    <tr><td>Server-এর public key</td><td>30 82 01 0a …</td></tr>
+    <tr><td>CA-র hash ও সই-algorithm</td><td>SHA-256 + 2,048-bit RSA</td></tr>
+    <tr><td><b>Digital signature</b></td><td>উপরের সব field-এর উপর CA-র সই</td></tr>
+  </table></div>
+  <h3>Certificate hierarchy (Chain of trust)</h3>
+  <p>CA-র নিজের পরিচয় কে যাচাই করবে? আরেকটা উচ্চতর CA-র সই করা certificate → <b>intermediate CA</b>-দের hierarchy। শীর্ষে <b>root certificate</b> — এর উপরে কেউ নেই, তাই এটা <b>self-signed</b> (issuer = subject), নিজের বৈধতা নিজেই ঘোষণা করে। Root certificate হলো chain of trust-এর <b>anchor point</b>; OS বা browser এদের সুরক্ষিত ফাইলে আগে থেকেই রাখে।</p>
+  <div class="formula">🏛️ Root CA (self-signed, browser-এ আগে থেকে আছে)  ← trust anchor
+        │ সই করে
+🏢 Intermediate CA
+        │ সই করে
+🌐 www.paypal.com (server certificate)</div>
+  <div class="lab"><span class="label">🧪 Browser-এর মতো certificate যাচাই করো</span>
+    <div class="row"><label for="cdom">যে সাইটে যাচ্ছ</label><input type="text" id="cdom" value="www.paypal.com"></div>
+    <div class="row">
+      <label><input type="checkbox" id="cexp"> Certificate মেয়াদোত্তীর্ণ</label>
+      <label><input type="checkbox" id="crev"> Serial number CRL-এ আছে</label>
+      <label><input type="checkbox" id="csig"> Intermediate-এর সই ভুল</label>
+      <label><input type="checkbox" id="croot"> Root browser-এর trust store-এ নেই</label>
+    </div>
+    <div class="row"><label for="ccn">Certificate-এর domain</label><input type="text" id="ccn" value="www.paypal.com"><button class="btn" id="cgo">যাচাই করো</button></div>
+    <div class="out" id="cout"></div>
+  </div>
+</section>
+
+<section class="topic" id="ev">
+  <h2>EV Certificate, CRL ও Usability</h2>
+  <h3>Extended Validation (EV)</h3>
+  <p>কিছু CA শুধু <b>domain validation</b> করে — certificate-এর domain আবেদনকারীর মালিকানায় কি না। আরও কঠোরভাবে পরিচয় যাচাইয়ের জন্য <b>extended validation certificate</b> — শুধু সেই CA দিতে পারে যারা <b>CA/Browser Forum</b>-এর কঠোর মানদণ্ডের audit পাস করেছে। EV certificate-এর CA field-এ তা উল্লেখ থাকে।</p>
+  <h3>মেয়াদ ও বাতিল (Revocation)</h3>
+  <ul>
+    <li>প্রতিটা certificate-এর <b>validity period</b> আছে।</li>
+    <li>মেয়াদের আগেই অবৈধ হতে পারে — <b>private key ফাঁস</b> বা সাইট পরিচালনাকারী প্রতিষ্ঠান বদল।</li>
+    <li>তখন CA serial number <b>Certificate Revocation List (CRL)</b>-এ যোগ করে; CRL CA-র সই করা ও revocation site-এ প্রকাশিত (URL certificate-এই থাকে)।</li>
+  </ul>
+  <div class="box exam"><span class="label">🎯 Certificate পুরোপুরি যাচাই = ৪ কাজ</span><ol><li>Certificate-এর সই যাচাই</li><li>CRL download</li><li>CRL-এর সই যাচাই</li><li>Serial number CRL-এ আছে কি না দেখা</li></ol></div>
+  <h3>Usability</h3>
+  <p>পুরো ব্যবস্থা নির্ভর করে user browser-এর দেখানো তথ্য বুঝে সিদ্ধান্ত নেয় কি না তার উপর — <b>padlock icon</b>, address bar-এ সবুজ পটভূমিতে প্রতিষ্ঠানের নাম (EV), ক্লিক করলে certificate-এর সারাংশ।</p>
+</section>
+
+<section class="topic" id="semantic">
+  <h2>Semantic Attack</h2>
+  <p>Certificate <b>syntactically</b> নিখুঁত প্রযুক্তি, কিন্তু <b>semantic</b> আক্রমণে দুর্বল। Bruce Schneier: “যে আক্রমণ লক্ষ্য করে আমরা মানুষেরা কীভাবে content-এ অর্থ আরোপ করি… সরাসরি human/computer interface-কে — ইন্টারনেটের সবচেয়ে অনিরাপদ interface।”</p>
+  <div class="stepper">
+    <div class="step"><p><b>১.</b> <code>0ntest.com</code> domain কেনো (শূন্য <b>0</b>, ইংরেজি <b>O</b> নয়)।</p></div>
+    <div class="step"><p><b>২.</b> <code>0ntest.com</code>-এর জন্য বৈধ digital certificate কেনো — CA শুধু দেখে domain তোমার কি না, আর সেটা সত্যিই তোমার!</p></div>
+    <div class="step"><p><b>৩.</b> <code>ontest.com</code>-এর হুবহু নকল সাইট বানাও।</p></div>
+    <div class="step"><p><b>৪.</b> User-কে <code>0ntest.com</code>-এ পাঠাও। <b>Browser certificate বৈধ দেখাবে — 🔒 padlock সহ!</b> সাধারণ মানুষ কি পার্থক্য ধরতে পারবে?</p></div>
+  </div>
+  <div class="lab"><span class="label">🧪 Look-alike domain detector</span>
+    <div class="row"><label for="la">Domain</label><input type="text" id="la" value="0ntest.com" style="flex:1"></div>
+    <div class="out" id="laout"></div>
+    <p style="font-size:.9rem">চেষ্টা করো: <code>paypa1.com</code>, <code>rnicrosoft.com</code> (r+n = m), <code>gooogle.com</code>, <code>bkash.com</code></p>
+  </div>
+</section>
+
+<section class="topic" id="dynamic">
+  <h2>Dynamic HTML, DOM ও JavaScript</h2>
+  <p>শুধু fixed content-এর page = <b>static</b>; user-এর interaction বা সময়ের সাথে বদলায় এমন page = <b>dynamic</b>। এজন্য <b>scripting language</b> — অ্যাপ্লিকেশনের (browser) ভেতরে চলা নির্দেশনা; লেখা program = <b>script</b>।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th></th><th>Client-side scripting</th><th>Server-side scripting</th></tr>
+    <tr><td>কোথায় চলে</td><td>Browser-এ (browser-এর module interpret করে)</td><td>Web server-এ</td></tr>
+    <tr><td>User কোড দেখে?</td><td>হ্যাঁ</td><td>না — শুধু output দেখে</td></tr>
+    <tr><td>উদাহরণ</td><td>JavaScript</td><td>PHP, ASP, Python</td></tr>
+  </table></div>
+  <h3>Document Object Model (DOM)</h3>
+  <p>Web page-এর content-কে সংগঠিতভাবে প্রকাশের উপায়। Object-oriented পদ্ধতিতে tag ও element-গুলো parent-child সম্পর্কের object → <b>DOM tree</b>। Script tree traverse করে page-এর যেকোনো object access ও পরিবর্তন করতে পারে।</p>
+  <div class="formula">document
+ └─ html
+     ├─ head ─ title ─ "My bank"
+     └─ body
+         ├─ h1 ─ "Welcome"
+         ├─ form#login ─ input[name=user], input[name=pwd]
+         └─ img[src=logo.png]</div>
+  <h3>JavaScript</h3>
+  <ul><li>১৯৯৫-এ এসেছে, এখন সব প্রধান browser সমর্থন করে; <code>&lt;script&gt;…&lt;/script&gt;</code> ট্যাগে লেখা।</li><li>Function declare ও argument পাস; C-এর মতো for, while, if/else, switch।</li><li><b>Event handling</b> — ক্লিক, mouse-over: <code>&lt;img src="picture.gif" onMouseOver="javascript:hello()"&gt;</code> — ছবির উপর মাউস নিলেই hello() চলে, “Hello world!” pop-up।</li><li>DOM tree access করে page-এর content dynamically বদলাতে পারে।</li></ul>
+  <div class="box warn"><span class="label">🔒 কেন এটা সিকিউরিটির বিষয়</span><p>JavaScript DOM-এর সবকিছু — form-এ টাইপ করা password, এমনকি <b>cookie</b> (<code>document.cookie</code>) — পড়তে পারে। তাই অন্য কেউ যদি তোমার page-এ নিজের script ঢুকিয়ে দিতে পারে, সে সব পায় → <b>XSS</b> (Lecture 26)। আর mouse-over event দিয়ে <b>click-jacking</b> (Lecture 25)।</p></div>
+</section>
+
+<section class="topic" id="session">
+  <h2>HTTP Session ও Hidden Field</h2>
+  <p>HTTP stateless — প্রতিটা নতুন page request সার্ভারের কাছে নতুন সাক্ষাৎ। কিন্তু login, shopping cart-এর জন্য user-কে মনে রাখা দরকার। <b>Session</b> = একাধিক page জুড়ে টিকে থাকা ভিজিটরের তথ্য। তিন উপায়:</p>
+  <ol><li>GET বা POST variable দিয়ে session তথ্য পাঠানো</li><li><b>Cookie</b> (Lecture 25)</li><li>Server-side session variable (Lecture 25)</li></ol>
+  <div class="box warn"><span class="label">⚠️ Session = অত্যন্ত সংবেদনশীল</span><p>ব্যাংক, ক্রেডিট কার্ড, স্বাস্থ্য রেকর্ডে consistent identity এটাই দেয়। <b>Session hijacking</b> = যেকোনো পরিস্থিতি যেখানে attacker user-এর session তথ্য পেয়ে তার পরিচয়ে সাইটে authenticate করে।</p></div>
+  <h3>GET/POST দিয়ে session — hidden field</h3>
+  <div class="formula">&lt;form method="POST" action="cart.php"&gt;
+  &lt;input type="hidden" name="sessionid" value="7456"&gt;
+  ...
+&lt;/form&gt;</div>
+  <p>User দেখে না, কিন্তু প্রতিবার page বদলালে এই তথ্য server-এ যায়; server একই hidden কোড দিয়ে পরের page বানায়।</p>
+  <ul><li><b>দুর্বলতা:</b> HTTP unencrypted → MITM-এ খুব দুর্বল। GET/POST variable পেলেই attacker session hijack করে user সেজে যায়।</li><li><b>সমাধান:</b> session-এর সাথে অবশ্যই <b>HTTPS</b>।</li></ul>
+  <div class="box example"><span class="label">💡 “Hidden” মানে গোপন নয়</span><p>যেকেউ “View Source” বা DevTools খুলে hidden field দেখতে ও বদলাতে পারে। পুরনো কিছু শপিং সাইট দাম hidden field-এ রাখত — user দাম ১০০০ থেকে ১ করে দিলেই হলো!</p></div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="1">
+    <div class="q">১) HTTPS-এ session শেষে বার্তা encrypt হয় কী দিয়ে?</div>
+    <button class="opt">Server-এর public key দিয়ে প্রতিটা বার্তা</button><button class="opt">Random number থেকে বানানো shared secret দিয়ে symmetric encryption + MAC</button><button class="opt">CA-র private key</button><button class="opt">কোনো encryption নেই</button>
+    <div class="explain">Public key শুধু random number পাঠাতে; বাকিটা দ্রুত symmetric।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">২) Root certificate-এর বৈশিষ্ট্য কোনটা?</div>
+    <button class="opt">Intermediate CA সই করে</button><button class="opt">মেয়াদ নেই</button><button class="opt">CRL-এ থাকে</button><button class="opt">Self-signed: issuer = subject; trust anchor</button>
+    <div class="explain">উপরে কেউ নেই, তাই নিজেই সই করে।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) 0ntest.com-এর বৈধ certificate থাকা সত্ত্বেও user প্রতারিত হয় — এটা কোন আক্রমণ?</div>
+    <button class="opt">Semantic attack</button><button class="opt">SYN flood</button><button class="opt">Replay</button><button class="opt">CRL attack</button>
+    <div class="explain">মানুষ কীভাবে অর্থ বোঝে তাকেই লক্ষ্য।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">৪) Certificate মেয়াদের আগেই কেন বাতিল হতে পারে?</div>
+    <button class="opt">Browser update হলে</button><button class="opt">User password বদলালে</button><button class="opt">Private key ফাঁস বা প্রতিষ্ঠান বদল</button><button class="opt">DNS cache খালি হলে</button>
+    <div class="explain">তখন serial number CRL-এ যায়।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>URL টাইপ থেকে page দেখা পর্যন্ত ধাপগুলো।</li>
+    <li>HTTP-র নিরাপত্তা সমস্যা; HTTPS/TLS session establishment-এর ধাপ।</li>
+    <li>Web server certificate-এর field; certificate hierarchy; self-signed root।</li>
+    <li>EV certificate; CRL ও certificate যাচাইয়ের চার ধাপ।</li>
+    <li>Semantic attack (0ntest.com উদাহরণ)।</li>
+    <li>Client-side বনাম server-side scripting; DOM।</li>
+    <li>Session কী, তিন উপায়; hidden field-এর দুর্বলতা।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture21.html"><small>← আগের লেকচার</small>Lecture 21: Network Attacks II</a>
+  <a class="next" href="lecture25.html"><small>পরের লেকচার →</small>Lecture 25: Web Security II</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l24.js"></script>
+</body>
+</html>

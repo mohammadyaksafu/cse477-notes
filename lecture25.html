@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 25 · Web Security II</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L25">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 25 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 25</div>
+  <h1>Web Security II — Cookie, Session Hijacking, Phishing ও Mobile Code</h1>
+  <p>Cookie দিয়ে session ও তার property (domain, path, Secure, HttpOnly), server-side session, HTTP session hijacking ও প্রতিরক্ষা, phishing, URL obfuscation ও homograph attack, click-jacking, sandboxing, Flash, mobile code (ActiveX বনাম Java), আর third-party cookie-র privacy সমস্যা।</p>
+  <div class="chips"><span class="chip">Set-Cookie</span><span class="chip">Secure · HttpOnly</span><span class="chip">Session ID</span><span class="chip">Phishing</span><span class="chip">Homograph (Cyrillic р)</span><span class="chip">Click fraud</span><span class="chip">Sandbox</span><span class="chip">Third-party cookie</span></div>
+</div>
+
+<section class="topic" id="cookie">
+  <h2>Cookie দিয়ে HTTP Session</h2>
+  <p><b>Cookie</b> = কোনো নির্দিষ্ট server-এর সাথে যুক্ত, client-এর কম্পিউটারে রাখা ছোট তথ্য। Server HTTP response-এর <code>Set-Cookie</code> header দিয়ে সেট করে; user আবার সাইটে এলে cookie <b>অপরিবর্তিত</b> অবস্থায় ফেরত যায় — server user-কে “মনে রাখে”।</p>
+  <div class="formula">Set-Cookie: SESSIONID=8f3a9c…; Domain=.paypal.com; Path=/; Expires=Wed, 01 Jan 2027 00:00:00 GMT; Secure; HttpOnly</div>
+  <div class="tbl-wrap"><table>
+    <tr><th>অংশ</th><th>অর্থ</th></tr>
+    <tr><td><b>Name = Content</b></td><td>Cookie-র key-value pair</td></tr>
+    <tr><td><b>Domain</b> .paypal.com</td><td>এই top-level domain ও সব subdomain-এ বৈধ</td></tr>
+    <tr><td><b>Path</b> /</td><td>সাইটের root directory-তে প্রযোজ্য (না দিলে ডিফল্ট root)</td></tr>
+    <tr><td><b>Send for</b> / Secure</td><td>“Any type of connection” = secure নয়; Secure দিলে শুধু HTTPS-এ যায়</td></tr>
+    <tr><td><b>Expires</b></td><td>কখন নিজে মুছবে; না দিলে browser বন্ধ করলেই মুছে যায় (session cookie)</td></tr>
+  </table></div>
+</section>
+
+<section class="topic" id="props">
+  <h2>Cookie Property: Domain, Path, Secure, HttpOnly</h2>
+  <h3>Domain নিয়ম</h3>
+  <ul>
+    <li>শুধু ওই domain-এর host-রাই সেই domain-এর cookie সেট করতে পারে।</li>
+    <li>Subdomain উপরের স্তরের domain-এর জন্য cookie <b>সেট করতে পারে</b>, উল্টোটা নয়।</li>
+    <li>Subdomain উপরের domain-এর cookie <b>পড়তে পারে</b>, উল্টোটা নয়: <code>mail.example.com</code> পড়তে পারে example.com ও mail.example.com-এর cookie; <code>example.com</code> পারে না mail.example.com-এর।</li>
+    <li>Host শুধু <b>এক স্তর উপরের</b> domain-এর জন্য সেট করতে পারে: <code>one.mail.example.com</code> .example.com-এর cookie পড়তে পারে, কিন্তু সেট করতে পারে না।</li>
+  </ul>
+  <div class="lab"><span class="label">🧪 Cookie domain checker (স্লাইডের নিয়ম অনুযায়ী)</span>
+    <div class="row"><label for="ch">Host</label><select id="ch"><option>example.com</option><option selected>mail.example.com</option><option>one.mail.example.com</option><option>evil.com</option></select>
+    <label for="cd">Cookie-র domain</label><select id="cd"><option>example.com</option><option>mail.example.com</option><option>one.mail.example.com</option></select></div>
+    <div class="out" id="cout"></div>
+  </div>
+  <h3>Path, Secure ও HttpOnly</h3>
+  <div class="flash-grid">
+    <div class="flash" data-front="Path" data-back="Cookie শুধু সাইটের নির্দিষ্ট subdirectory-তে access করা যাবে; না দিলে root"></div>
+    <div class="flash" data-front="Secure flag" data-back="শুধু HTTPS দিয়ে পাঠানো হবে। HTTPS সাইটও এটা ভুলে গেলে session hijacking হয়েছে"></div>
+    <div class="flash" data-front="HttpOnly flag" data-back="Script (JavaScript) cookie পড়তে/বদলাতে পারবে না। কিন্তু browser নিজে request-এ cookie পাঠাবেই; user plugin দিয়ে বদলাতে পারে"></div>
+    <div class="flash" data-front="Encrypted value + opaque name" data-back="শুধু server খুলতে পারে; malware cookie পেলেও অর্থপূর্ণ কিছু পায় না"></div>
+  </div>
+  <ul>
+    <li>Client স্বয়ংক্রিয়ভাবে ওই domain ও path-এর সব cookie HTTP request-এর <code>Cookie:</code> field-এ পাঠায়।</li>
+    <li>Cookie <b>DOM দিয়ে accessible</b> — তাই অনেক scripting language পড়তে পারে। JavaScript cookie-কে DOM-এ রাখা সাধারণ string হিসেবে দেখে (<code>document.cookie</code>); অনেক ভাষার নিজস্ব cookie API আছে।</li>
+    <li>এসব property <b>browser</b> সামলায়, OS নয় — প্রতিটা browser-এর আলাদা cookie সেট।</li>
+  </ul>
+  <h3>Cookie security</h3>
+  <ul><li>Cookie-তে সংবেদনশীল তথ্য unencrypted রাখা বিপজ্জনক — ওই কম্পিউটারের user-রা পড়তে পারে।</li><li>Encrypt থাকলেও কারো cookie পেলেই তার session নেওয়া যায় → cookie-কে login তথ্যের মতোই রক্ষা করো।</li><li>Expiration ভালো প্রতিরোধ, তবু নিয়মিত cookie মুছে ফেলা উচিত।</li><li>এছাড়া privacy সমস্যা (শেষ অংশে)।</li></ul>
+</section>
+
+<section class="topic" id="server">
+  <h2>Server-side Session</h2>
+  <p>User-এর তথ্য server-এই রাখা — user-এর কম্পিউটার আক্রান্ত হলেই web session আক্রান্ত হয় না। E-commerce-এর shopping cart-এ বহুল ব্যবহৃত।</p>
+  <ul>
+    <li>Server একটা <b>session ID / session token</b> দেয় — session-এর unique identifier।</li>
+    <li>Client-এ token রাখা হয় আগের দুই উপায়ের একটায় (GET/POST variable বা cookie); প্রতিবার page বদলালে token server-এ যায়, server তথ্য বের করে।</li>
+    <li>Session ID <b>আন্দাজ করা কঠিন</b> হতে হবে → random number generator বা MAC দিয়ে বানানো।</li>
+    <li>Client কম্পিউটার আক্রান্ত হলে attacker শুধু একটা পুরনো session ID পায়, যা সম্ভবত ততক্ষণে expired।</li>
+  </ul>
+  <div class="box story"><span class="label">📖 উপমা</span><p>Cookie-তে সব তথ্য রাখা = পকেটে টাকার বান্ডিল নিয়ে ঘোরা। Server-side session = টাকা লকারে রেখে শুধু লকারের টোকেন পকেটে — টোকেন হারালেও তাড়াতাড়ি বাতিল করা যায়।</p></div>
+</section>
+
+<section class="topic" id="hijack">
+  <h2>HTTP Session Hijacking ও প্রতিরক্ষা</h2>
+  <p>TCP session hijacking-এর মতো HTTP session-ও দখল করা যায়। বিশেষত বিপজ্জনক যখন শুরুতে শক্তিশালী authentication, কিন্তু পরে যোগাযোগ unencrypted। Attacker-কে (১) যোগাযোগ intercept করতে হয়, এবং (২) session রক্ষার যে ব্যবস্থা (token) তা নকল করতে হয়।</p>
+  <ul><li>Packet sniffer দিয়ে victim-এর session ID, cookie-র token বা GET/POST variable জানা যায়।</li><li>বৈধ server-side token পুনর্গঠন বা client-side token নকল করতে পারলেই user সেজে যায়।</li><li>তাই প্রথম প্রতিরক্ষা: packet sniffer ও TCP session hijacking থেকে সুরক্ষা।</li></ul>
+  <div class="lab"><span class="label">🧪 Session ID কতটা আন্দাজযোগ্য?</span>
+    <div class="row"><label for="sg">Generator</label><select id="sg"><option value="seq">ক্রমিক (1001, 1002…)</option><option value="time">সময়-ভিত্তিক (timestamp)</option><option value="rnd">128-bit random</option></select><button class="btn" id="sgo">৫ জন user login করুক</button></div>
+    <div class="out" id="sout"></div>
+  </div>
+  <h3>প্রতিরক্ষা</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>ব্যবস্থা</th><th>কী ঠেকায়</th></tr>
+    <tr><td>Client-side token <b>encrypt</b> করা</td><td>Token পড়ে/বানিয়ে ফেলা</td></tr>
+    <tr><td>Server-side ID <b>pseudo-random</b></td><td>আন্দাজ করা</td></tr>
+    <tr><td>Token-এ <b>random number</b>, ঘন ঘন <b>token বদল</b>, যুক্তিসঙ্গত expiry</td><td><b>Replay</b> — পুরনো বৈধ token দিয়ে hijack</td></tr>
+    <tr><td>Token-কে client-এর <b>IP address</b>-এর সাথে বাঁধা</td><td>অন্য IP থেকে চুরি করা token ব্যবহার</td></tr>
+  </table></div>
+</section>
+
+<section class="topic" id="phishing">
+  <h2>Phishing ও URL Obfuscation</h2>
+  <p><b>Phishing</b> = সংবেদনশীল তথ্য প্রতারণা করে হাতানোর জন্য বানানো <b>ভুয়া web page</b>। সাধারণত spam ইমেইল দিয়ে user-কে সেখানে নেওয়া হয়। সবচেয়ে বেশি লক্ষ্য: আর্থিক সেবা (Citibank), payment (PayPal), নিলাম (eBay)। ২০০৯-এ প্রতি মাসে ~৪৫,০০০ unique phishing সাইট (APWG)।</p>
+  <ul><li>Phishing নির্ভর করে user যে page ভালো করে দেখবে না তার উপর — হুবহু নকল বানানো কঠিন।</li><li>DNS cache poisoning না হলে address bar-এ এক নজর দিলেই ধরা যায়; source code দেখেও প্রমাণ মেলে।</li><li>Browser-এর জনপ্রিয় প্রতিরোধ: নিয়মিত আপডেট হওয়া <b>phishing সাইটের blacklist</b> — সেখানে গেলে সতর্কবার্তা।</li></ul>
+  <h3>URL obfuscation</h3>
+  <ul><li>সাধারণ বানান ভুল (paypa1.com) চোখ এড়িয়ে যায়।</li><li>HTML ইমেইলে লিংকের <b>দেখানো লেখা</b> আর <b>আসল গন্তব্য</b> আলাদা:</li></ul>
+  <div class="formula">&lt;a href="http://www.evilsite.com/"&gt;https://www.mybank.com/wiki/Login&lt;/a&gt;
+   └──── আসল গন্তব্য ────┘   └──────── user যা দেখে ────────┘</div>
+  <h3>Homograph (Unicode) attack</h3>
+  <p>বহু ভাষায় domain সমর্থনের জন্য URL-এ Unicode অক্ষর চলে। অনেক অক্ষরের Unicode মান আলাদা কিন্তু দেখতে <b>হুবহু এক</b>। বিখ্যাত উদাহরণ: <code>www.paypal.com</code> রেজিস্টার করা হয়েছিল <b>Cyrillic р (U+0440)</b> দিয়ে, ASCII p (U+0070)-র বদলে। বৈধ certificate থাকলে এটা semantic attack-এর নিখুঁত রূপ।</p>
+  <div class="lab"><span class="label">🧪 দুটো “paypal” — একই দেখায়?</span>
+    <div class="row"><button class="btn" id="h1">www.paypal.com</button><button class="btn" id="h2">www.&#x440;&#x430;&#x443;&#x440;&#x430;l.com</button><input type="text" id="hin" placeholder="নিজে কিছু পেস্ট করো" style="flex:1"></div>
+    <div class="out" id="hout">একটা বাটনে ক্লিক করো — প্রতিটা অক্ষরের code point দেখাবে।</div>
+  </div>
+</section>
+
+<section class="topic" id="clickjack">
+  <h2>Click-jacking</h2>
+  <p>User-এর মাউস ক্লিক এমনভাবে ব্যবহার করা যা user চায়নি। সহজ উদাহরণ — লিংক দেখতে www.trustedsite.com, কিন্তু ক্লিক করলে অন্যত্র:</p>
+  <div class="formula">&lt;a onMouseUp="window.open('http://www.evilsite.com/')"
+   href="http://www.trustedsite.com/"&gt;Trust me!&lt;/a&gt;</div>
+  <p>এমনকি নিরাপত্তার মিথ্যা অনুভূতি দেয় — hover করলে status bar-এ trustedsite.com-ই দেখায়!</p>
+  <ul><li>শুধু ক্লিক নয় — <code>onMouseOver</code>-এর মতো event-এ মাউস নাড়ালেই কাজ হয়ে যায়।</li><li><b>Click fraud:</b> বিজ্ঞাপনদাতারা click-through সংখ্যা অনুযায়ী টাকা দেয় → click-jacking দিয়ে user-কে অনিচ্ছায় বিজ্ঞাপনে ক্লিক করিয়ে আয় বাড়ানো।</li></ul>
+  <div class="box example"><span class="label">💡 আধুনিক রূপ</span><p>অদৃশ্য (opacity 0) iframe-এ আসল সাইটের “Delete account” বাটন, তার ঠিক উপরে দৃশ্যমান “Win iPhone!” বাটন — তুমি ক্লিক করো পুরস্কারে, আসলে চাপো delete-এ। প্রতিকার: সাইট <code>X-Frame-Options</code> / CSP <code>frame-ancestors</code> দিয়ে frame-এ ঢোকা নিষেধ করে।</p></div>
+</section>
+
+<section class="topic" id="sandbox">
+  <h2>Sandboxing, Flash ও Mobile Code</h2>
+  <p><b>Sandbox</b> = অন্য অ্যাপ্লিকেশনের ভেতরে চলা অ্যাপ/script-এর <b>সীমিত অধিকার</b> — যেমন শুধু নির্দিষ্ট ফাইল ও ডিভাইসে access। Google Chrome প্রতিটা নতুন tab আলাদা <b>process</b>-এ চালায় → OS স্তরে প্রতিটা tab sandboxed; এক tab-এর দুর্বলতা দিয়ে অন্য tab-এর content পাওয়া যায় না।</p>
+  <h3>Adobe Flash ও media player</h3>
+  <p>Embedded media player-এ ত্রুটি থাকলে ক্ষতিকর media ফাইল browser-এর sandbox ভেঙে victim-এর মেশিনে কোড চালাতে পারে — streaming প্রযুক্তিতে বারবারের সমস্যা। Flash প্রায় সর্বত্র ছিল (বিজ্ঞাপন, interactive content) → সবসময় সর্বশেষ (patched) version ব্যবহার। (Flash ২০২০-এ বন্ধ হয়েছে।)</p>
+  <h3>Mobile code</h3>
+  <p>নেটওয়ার্কে পাঠানো, গন্তব্যে চলা executable program — JavaScript, ActiveX, Java plugin, integrated JVM।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>ActiveX</th><th>Java Applet</th></tr>
+    <tr><td>শুধু Windows, Internet Explorer-এ</td><td>Platform-independent (browser plugin)</td></tr>
+    <tr><td>Browser-এর হয়ে <b>binary code</b> চলে</td><td>Browser-এর ভেতরে Java code</td></tr>
+    <tr><td>Sandbox-এর বাইরে user ফাইলে access পারে</td><td><b>Sandboxed</b> execution</td></tr>
+    <tr><td>Signed code সমর্থন</td><td>Signed code সমর্থন</td></tr>
+    <tr><td>Install করা control যেকোনো সাইট চালাতে পারে (IE7 পর্যন্ত)</td><td>Applet শুধু যে সাইটে embed সেখানেই চলে</td></tr>
+    <tr><td>IE option: allow / deny / prompt / admin approval</td><td>User-বিশ্বস্ত applet sandbox থেকে বেরোতে পারে</td></tr>
+  </table></div>
+  <h3>ActiveX-এর বিপদ</h3>
+  <ul>
+    <li>Signed control অনুমতি চায়; অনুমোদন দিলে <b>user-এর সমান অধিকারে</b> চলে।</li>
+    <li>“Always trust content from …” চেকবক্স = ওই publisher-এর সব control স্বয়ংক্রিয় গ্রহণ — সম্ভবত খারাপ ধারণা।</li>
+    <li>Trusted publisher-এর তালিকা Windows <b>registry</b>-তে; ক্ষতিকর control registry বদলে নিজের publisher-কে trusted করে ফেলতে পারে → ভবিষ্যতে সব prompt ছাড়াই চলে।</li>
+    <li>Unsigned control reject করলেও সেটা আগেই temp folder-এ download হয়ে থাকে — চলে না, কিন্তু মোছাও হয় না।</li>
+  </ul>
+</section>
+
+<section class="topic" id="privacy">
+  <h2>Privacy Attack: Third-party Cookie</h2>
+  <p>Adware/spyware ছাড়াও cookie নির্দিষ্ট privacy সমস্যা তৈরি করে। Server HTTP response দিয়ে cookie সেট করে — তাই কোনো সাইটে <b>অন্য সাইটে host করা ছবি</b> embed থাকলে, ছবির সাইটও তোমার মেশিনে cookie সেট করতে পারে → <b>third-party cookie</b>।</p>
+  <div class="formula">তুমি যাও news.com  → পেজে &lt;img src="https://ads.tracker.com/pixel.gif"&gt;
+                     → tracker.com cookie সেট: uid=42
+তুমি যাও shop.com  → একই pixel → browser পাঠায় Cookie: uid=42
+তুমি যাও health.com → আবার uid=42
+⇒ tracker.com জানে: uid 42 খবর পড়ে, জুতা খোঁজে, ডায়াবেটিস নিয়ে পড়ে 😟</div>
+  <ul><li>মূলত বিজ্ঞাপনদাতারা অনেক সাইট জুড়ে user track ও পরিসংখ্যান সংগ্রহে ব্যবহার করে — user-এর অজান্তে ও সম্মতি ছাড়া, তাই অনেকে privacy লঙ্ঘন মনে করে।</li><li>Third-party cookie block করলেও tracking পুরো বন্ধ হয় না — বিজ্ঞাপন নেটওয়ার্ক অংশগ্রহণকারী সাইটগুলোর একাধিক domain নামে image server রাখতে পারে।</li></ul>
+  <h3>Browser-এর privacy ফিচার</h3>
+  <ul><li>Cookie কতদিন থাকবে ও third-party cookie অনুমোদিত কি না — policy।</li><li>History ও cached ফাইল স্বয়ংক্রিয় মুছে ফেলা।</li><li>Anonymity-র জন্য <b>proxy server</b>।</li><li><b>Private browsing</b> mode — cookie ও history সংরক্ষণ হয় না।</li></ul>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="2">
+    <div class="q">১) কোন flag দিলে JavaScript (document.cookie) cookie পড়তে পারে না?</div>
+    <button class="opt">Secure</button><button class="opt">Path</button><button class="opt">HttpOnly</button><button class="opt">Expires</button>
+    <div class="explain">HttpOnly → script access বন্ধ; কিন্তু browser request-এ পাঠাবেই।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">২) example.com কি mail.example.com-এর cookie পড়তে পারে?</div>
+    <button class="opt">হ্যাঁ, parent সব পড়তে পারে</button><button class="opt">না — subdomain parent-এরটা পড়ে, উল্টো নয়</button><button class="opt">শুধু HTTPS-এ</button><button class="opt">শুধু HttpOnly হলে</button>
+    <div class="explain">উপরের দিকে পড়া চলে, নিচের দিকে নয়।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৩) Session token-কে client-এর IP-র সাথে বাঁধা, token ঘন ঘন বদলানো — মূলত কী ঠেকাতে?</div>
+    <button class="opt">Phishing</button><button class="opt">Click fraud</button><button class="opt">SYN flood</button><button class="opt">Session hijacking / replay</button>
+    <div class="explain">চুরি করা বা পুরনো token অকেজো হয়।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৪) www.paypal.com-এ ‘p’-এর জায়গায় Cyrillic ‘р’ (U+0440) — কোন আক্রমণ?</div>
+    <button class="opt">Homograph (Unicode) attack</button><button class="opt">Click-jacking</button><button class="opt">CSRF</button><button class="opt">ARP spoofing</button>
+    <div class="explain">দেখতে একই, Unicode মান আলাদা।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>Set-Cookie-র field; domain নিয়ম (mail.example.com উদাহরণ)।</li>
+    <li>Secure ও HttpOnly flag; কেন cookie login তথ্যের মতো রক্ষা করতে হয়?</li>
+    <li>Server-side session; session ID কেমন হওয়া উচিত?</li>
+    <li>HTTP session hijacking ও তার প্রতিরক্ষা।</li>
+    <li>Phishing, URL obfuscation, homograph attack, click-jacking ও click fraud।</li>
+    <li>Sandbox; ActiveX বনাম Java applet।</li>
+    <li>Third-party cookie ও privacy; browser-এর privacy ফিচার।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture24.html"><small>← আগের লেকচার</small>Lecture 24: Web Security I</a>
+  <a class="next" href="lecture26.html"><small>পরের লেকচার →</small>Lecture 26: XSS, CSRF, SQLi</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l25.js"></script>
+</body>
+</html>

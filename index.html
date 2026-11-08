@@ -21,12 +21,13 @@
   <div class="hero">
     <div class="kicker">CSE 477 · INTRODUCTION TO COMPUTER SECURITY</div>
     <h1>গল্পে গল্পে কম্পিউটার সিকিউরিটি</h1>
-    <p>Lecture 3 থেকে 10 — প্রতিটা স্লাইডের বিষয় বাংলায় ব্যাখ্যা, গল্প, উদাহরণ, নিজে চালিয়ে দেখার মতো ল্যাব (Caesar, AES, RSA, Diffie-Hellman…), ফ্ল্যাশকার্ড আর কুইজ সহ।</p>
+    <p>Lecture 1–2, 3–10 ও 19–26 — প্রতিটা স্লাইডের বিষয় বাংলায় ব্যাখ্যা, গল্প, উদাহরণ, নিজে চালিয়ে দেখার মতো ল্যাব (Caesar, AES, RSA, Diffie-Hellman, DNS lookup, ARP spoofing, SYN flood, SQL injection…), ফ্ল্যাশকার্ড আর কুইজ সহ।</p>
     <p class="en">মূল স্লাইড: Dr. Md Sadek Ferdous, CSE, SUST। টেকনিক্যাল শব্দগুলো ইংরেজিতেই রাখা হয়েছে যাতে পরীক্ষায় লিখতে সুবিধা হয়।</p>
   </div>
 
   <h2>📚 লেকচারসমূহ</h2>
   <div class="lec-grid" id="lecs">
+    <a class="lec-card" href="lecture1.html" data-l="L1"><div class="num">LECTURE 1–2</div><h3>Security Basics</h3><p>Motivation · CIA · Assurance/Authenticity/Anonymity · Passive vs Active attacks</p><div class="progress"><i></i></div></a>
     <a class="lec-card" href="lecture3.html" data-l="L3"><div class="num">LECTURE 3</div><h3>Security Principles ও Access Control</h3><p>Saltzer–Schroeder-এর ১০ নীতি · Matrix · ACL · Capabilities · RBAC</p><div class="progress"><i></i></div></a>
     <a class="lec-card" href="lecture4.html" data-l="L4"><div class="num">LECTURE 4</div><h3>Basic Crypto Concepts</h3><p>Encryption · Caesar · Symmetric vs Public key · Digital signature · MITM · Unicity distance</p><div class="progress"><i></i></div></a>
     <a class="lec-card" href="lecture5.html" data-l="L5"><div class="num">LECTURE 5</div><h3>Hash, MAC, Certificate ও Password</h3><p>Hash-then-sign · h(K‖M) · CA · Password complexity · Dictionary attack · Social engineering</p><div class="progress"><i></i></div></a>
@@ -35,11 +36,17 @@
     <a class="lec-card" href="lecture8.html" data-l="L8"><div class="num">LECTURE 8</div><h3>Number Theory ও RSA</h3><p>GCD · Inverse · Fermat · Euler · RSA · Repeated squaring · Primality test</p><div class="progress"><i></i></div></a>
     <a class="lec-card" href="lecture9.html" data-l="L9"><div class="num">LECTURE 9</div><h3>Elgamal, DH, Hash ও Signature</h3><p>Discrete log · Diffie-Hellman + MITM · Merkle–Damgård · Birthday attack · RSA signature</p><div class="progress"><i></i></div></a>
     <a class="lec-card" href="lecture10.html" data-l="L10"><div class="num">LECTURE 10</div><h3>Cryptographic Protocols</h3><p>Lock-box thought experiment · XOR protocol · Notation · Goals · Attacks</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture19.html" data-l="L19"><div class="num">LECTURE 19</div><h3>HTTP, DNS ও Email</h3><p>Stateless HTTP · GET/POST · Status code · Cookie · DNS hierarchy ও caching · SMTP/POP/IMAP</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture20.html" data-l="L20"><div class="num">LECTURE 20</div><h3>Network Attacks I</h3><p>৪ threat · MITM · Sniffing · Scanning/nmap · ARP spoofing · IP spoofing</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture21.html" data-l="L21"><div class="num">LECTURE 21</div><h3>Network Attacks II</h3><p>TCP session hijacking · Ping flood · Smurf · SYN flood/cookie · DDoS · DNS cache poisoning</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture24.html" data-l="L24"><div class="num">LECTURE 24</div><h3>Web Security I</h3><p>HTTPS/TLS · Certificate ও CRL · Semantic attack · DOM · JavaScript · Hidden-field session</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture25.html" data-l="L25"><div class="num">LECTURE 25</div><h3>Web Security II</h3><p>Cookie (Secure/HttpOnly) · Session hijacking · Phishing · Homograph · Click-jacking · Sandbox · Privacy</p><div class="progress"><i></i></div></a>
+    <a class="lec-card" href="lecture26.html" data-l="L26"><div class="num">LECTURE 26</div><h3>Web Security III</h3><p>XSS · CSRF · RFI/LFI · SQL injection · Browser defences</p><div class="progress"><i></i></div></a>
   </div>
 
   <section class="topic">
     <h2>📥 মূল স্লাইড ডাউনলোড (PPTX)</h2>
-    <p style="display:flex;flex-wrap:wrap;gap:8px"><a class="chip" href="slides/lecture3.pptx" download>📥 Lecture 3</a> <a class="chip" href="slides/lecture4.pptx" download>📥 Lecture 4</a> <a class="chip" href="slides/lecture5.pptx" download>📥 Lecture 5</a> <a class="chip" href="slides/lecture6.pptx" download>📥 Lecture 6</a> <a class="chip" href="slides/lecture7.pptx" download>📥 Lecture 7</a> <a class="chip" href="slides/lecture8.pptx" download>📥 Lecture 8</a> <a class="chip" href="slides/lecture9.pptx" download>📥 Lecture 9</a> <a class="chip" href="slides/lecture10.pptx" download>📥 Lecture 10</a> </p>
+    <p style="display:flex;flex-wrap:wrap;gap:8px"><a class="chip" href="slides/lecture1.pptx" download>📥 Lecture 1–2</a> <a class="chip" href="slides/lecture3.pptx" download>📥 Lecture 3</a> <a class="chip" href="slides/lecture4.pptx" download>📥 Lecture 4</a> <a class="chip" href="slides/lecture5.pptx" download>📥 Lecture 5</a> <a class="chip" href="slides/lecture6.pptx" download>📥 Lecture 6</a> <a class="chip" href="slides/lecture7.pptx" download>📥 Lecture 7</a> <a class="chip" href="slides/lecture8.pptx" download>📥 Lecture 8</a> <a class="chip" href="slides/lecture9.pptx" download>📥 Lecture 9</a> <a class="chip" href="slides/lecture10.pptx" download>📥 Lecture 10</a> <a class="chip" href="slides/lecture19.pptx" download>📥 Lecture 19</a> <a class="chip" href="slides/lecture20.pptx" download>📥 Lecture 20</a> <a class="chip" href="slides/lecture21.pptx" download>📥 Lecture 21</a> <a class="chip" href="slides/lecture24.pptx" download>📥 Lecture 24</a> <a class="chip" href="slides/lecture25.pptx" download>📥 Lecture 25</a> <a class="chip" href="slides/lecture26.pptx" download>📥 Lecture 26</a> </p>
   </section>
 
   <section class="topic">
@@ -51,6 +58,8 @@
       <div><b>😈 Mallory / Charlie</b>মাঝখানে বসে বদলায় (active)</div>
       <div><b>🧔 Ivan</b>Lecture 10-এর বন্ধু, দমনমূলক দেশে থাকে</div>
       <div><b>🏛️ CA</b>বিশ্বস্ত কর্তৃপক্ষ, certificate সই করে</div>
+      <div><b>🤖 Botnet</b>Lecture 21-এর DDoS বাহিনী</div>
+      <div><b>🏦 naivebank</b>Lecture 26-এর CSRF শিকার</div>
     </div>
     <h3>কীভাবে পড়বে</h3>
     <ul>

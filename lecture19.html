@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 19 · HTTP, DNS, Email</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L19">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 19 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 19</div>
+  <h1>HTTP, DNS ও Email — নেটওয়ার্কের ভিত্তি</h1>
+  <p>Network security-র আক্রমণগুলো বুঝতে আগে জানতে হবে স্বাভাবিক অবস্থায় জিনিসগুলো কীভাবে চলে: ওয়েব পেজ কীভাবে আসে (HTTP), নাম থেকে IP কীভাবে পাই (DNS), আর ইমেইল কীভাবে যায় (SMTP, POP, IMAP)। পরের লেকচারগুলোর প্রায় সব আক্রমণ এদেরই দুর্বলতা কাজে লাগায়।</p>
+  <div class="chips"><span class="chip">HTTP · port 80 · stateless</span><span class="chip">GET vs POST</span><span class="chip">Status code</span><span class="chip">Cookie</span><span class="chip">DNS hierarchy</span><span class="chip">SMTP · port 25</span></div>
+</div>
+
+<section class="topic" id="web">
+  <h2>Web ও HTTP</h2>
+  <p>একটা <b>web page</b> কয়েকটা <b>object</b> দিয়ে তৈরি — HTML ফাইল, JPEG ছবি, Java applet, অডিও… একটা <b>base HTML ফাইল</b> থাকে যা অন্য object-গুলোকে রেফার করে। প্রতিটা object একটা <b>URL</b> দিয়ে চিহ্নিত।</p>
+  <div class="formula">www.sust.edu/cse/images/logo.png
+└─ host name ─┘└──── path name ────┘</div>
+  <p><b>HTTP (HyperText Transfer Protocol)</b> একটা <b>application layer</b> protocol, <b>client/server</b> মডেলে চলে:</p>
+  <ul><li><b>Client</b> = browser — object চায়, পায়, দেখায়।</li><li><b>Server</b> = web server — অনুরোধের জবাবে object পাঠায়।</li></ul>
+  <h3>HTTP কীভাবে চলে</h3>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">💻 Browser</span><span class="arr">TCP SYN → :80</span><span class="node b">🖥️ Server</span></div><p><b>ধাপ ১:</b> Client সার্ভারের <b>port 80</b>-এ TCP connection শুরু করে।</p></div>
+    <div class="step"><div class="flow"><span class="node">💻 Browser</span><span class="arr">← accept</span><span class="node b">🖥️ Server</span></div><p><b>ধাপ ২:</b> Server TCP connection গ্রহণ করে।</p></div>
+    <div class="step"><div class="flow"><span class="node">💻 Browser</span><span class="arr">GET /index.html ⇄ 200 OK</span><span class="node b">🖥️ Server</span></div><p><b>ধাপ ৩:</b> HTTP বার্তা (request/response) বিনিময়।</p></div>
+    <div class="step"><div class="flow"><span class="node">💻 Browser</span><span class="arr">✂️ close</span><span class="node b">🖥️ Server</span></div><p><b>ধাপ ৪:</b> TCP connection বন্ধ।</p></div>
+  </div>
+  <div class="box exam"><span class="label">🎯 HTTP is stateless</span><p>Server আগের কোনো request-এর তথ্য মনে রাখে না। কেন? State রাখা protocol জটিল — অতীত ইতিহাস রাখতে হয়, আর server/client crash করলে দুজনের “state”-এর ধারণা অসামঞ্জস্যপূর্ণ হয়ে যেতে পারে।</p></div>
+  <div class="box story"><span class="label">📖 উপমা</span><p>Stateless সার্ভার যেন এমন দোকানদার যার স্মৃতিশক্তি শূন্য — প্রতিবার গেলে নতুন কাস্টমার ভাবে। “গতকাল যে বাকি নিলাম” — মনে নেই! তাই আমাদের একটা টোকেন (cookie) সাথে নিয়ে যেতে হয়।</p></div>
+</section>
+
+<section class="topic" id="request">
+  <h2>HTTP Request, GET ও POST</h2>
+  <p>দুই ধরনের HTTP বার্তা: <b>request</b> ও <b>response</b>। Request বার্তা <b>ASCII</b> — মানুষ পড়তে পারে।</p>
+  <div class="formula">GET /index.html HTTP/1.1          ← request line (method, URL, version)
+Host: www.someschool.edu           ← header lines
+User-Agent: Firefox/3.6
+Connection: keep-alive
+                                   ← ফাঁকা লাইন = header শেষ
+(entity body — POST হলে এখানে ডেটা)</div>
+  <div class="tbl-wrap"><table>
+    <tr><th></th><th>GET</th><th>POST</th></tr>
+    <tr><td>Input কোথায় যায়</td><td>URL-এর request line-এ</td><td>Entity body-তে</td></tr>
+    <tr><td>দেখা যায়?</td><td>হ্যাঁ — address bar, history, server log-এ</td><td>URL-এ দেখা যায় না</td></tr>
+    <tr><td>ব্যবহার</td><td>সার্চ, লিংক</td><td>Form, login</td></tr>
+  </table></div>
+  <div class="lab"><span class="label">🧪 GET বনাম POST — request কেমন দেখায়</span>
+    <div class="row"><label for="ru">username</label><input type="text" id="ru" value="tom"><label for="rp">password</label><input type="text" id="rp" value="password"></div>
+    <div class="row"><button class="btn" id="rget">GET দিয়ে পাঠাও</button><button class="btn ghost" id="rpost">POST দিয়ে পাঠাও</button></div>
+    <div class="out" id="rout"></div>
+  </div>
+  <div class="box warn"><span class="label">⚠️ মনে রাখো</span><p>POST-এ password URL-এ দেখা যায় না, কিন্তু HTTP-তে পুরো বার্তাই <b>plaintext</b> — sniffer দুটোই পড়তে পারে! সত্যিকারের সুরক্ষা আসে HTTPS থেকে (Lecture 24)।</p></div>
+</section>
+
+<section class="topic" id="response">
+  <h2>HTTP Response ও Status Code</h2>
+  <div class="formula">HTTP/1.1 200 OK                    ← status line
+Date: Sun, 26 Sep 2010 20:09:20 GMT
+Server: Apache/2.0.52
+Content-Type: text/html
+
+&lt;html&gt;...requested HTML file...&lt;/html&gt;</div>
+  <div class="flash-grid">
+    <div class="flash" data-front="200 OK" data-back="অনুরোধ সফল; চাওয়া object এই বার্তাতেই আছে"></div>
+    <div class="flash" data-front="301 Moved Permanently" data-back="Object স্থায়ীভাবে সরেছে; নতুন ঠিকানা Location header-এ"></div>
+    <div class="flash" data-front="400 Bad Request" data-back="Server request বার্তা বুঝতে পারেনি"></div>
+    <div class="flash" data-front="404 Not Found" data-back="চাওয়া document এই সার্ভারে নেই"></div>
+    <div class="flash" data-front="505 HTTP Version Not Supported" data-back="Server এই HTTP version সমর্থন করে না"></div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">তুমি একটা পুরনো লিংকে গেলে, আর browser নিজে থেকেই নতুন ঠিকানায় চলে গেল। Server সম্ভবত কোন code পাঠিয়েছিল?</div>
+    <button class="opt">200</button><button class="opt">404</button><button class="opt">301</button><button class="opt">400</button>
+    <div class="explain">301 + Location header → browser redirect করে।</div>
+  </div>
+</section>
+
+<section class="topic" id="cookie">
+  <h2>Cookie: Stateless HTTP-তে State</h2>
+  <p>অনেক transaction জুড়ে state রাখতে <b>cookie</b> ব্যবহার হয় — HTTP বার্তাই state বহন করে। Cookie দিয়ে: <b>authorization, shopping cart, recommendation, user session state</b>।</p>
+  <h3>Cookie-র চারটা উপাদান</h3>
+  <ol>
+    <li>HTTP <b>response</b>-এ cookie header line (<code>Set-Cookie:</code>)</li>
+    <li>পরের HTTP <b>request</b>-এ cookie header line (<code>Cookie:</code>)</li>
+    <li>ব্যবহারকারীর host-এ (browser) রাখা <b>cookie ফাইল</b></li>
+    <li>Web site-এর <b>back-end database</b></li>
+  </ol>
+  <h3>Susan-এর গল্প</h3>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">👩 Susan</span><span class="arr">GET /shop →</span><span class="node b">🛒 amazon</span></div><p><b>ধাপ ১:</b> Susan প্রথমবার একটা e-commerce সাইটে গেল। তার request-এ কোনো cookie নেই।</p></div>
+    <div class="step"><div class="flow"><span class="node">👩 Susan</span><span class="arr">← Set-Cookie: id=1678</span><span class="node b">🛒 amazon<br><small>DB: 1678 → {}</small></span></div><p><b>ধাপ ২:</b> সাইট একটা <b>unique ID (1678)</b> বানায়, backend database-এ এন্ট্রি রাখে, আর response-এ <code>Set-Cookie</code> পাঠায়। Browser cookie ফাইলে সেভ করে।</p></div>
+    <div class="step"><div class="flow"><span class="node">👩 Susan</span><span class="arr">Cookie: id=1678 →</span><span class="node b">🛒 amazon<br><small>DB: 1678 → {বই}</small></span></div><p><b>ধাপ ৩:</b> পরের প্রতিটা request-এ browser নিজে থেকে <code>Cookie: id=1678</code> পাঠায়। সাইট ID দেখে database থেকে Susan-এর cart বের করে — <b>cookie-specific action</b>।</p></div>
+    <div class="step"><div class="flow"><span class="node">👩 Susan</span><span class="arr">(এক সপ্তাহ পর) Cookie: id=1678 →</span><span class="node b">🛒 “Welcome back!”</span></div><p><b>ধাপ ৪:</b> এক সপ্তাহ পরেও একই cookie — সাইট চিনে ফেলে, recommendation দেখায়।</p></div>
+  </div>
+  <div class="box warn"><span class="label">🔒 সিকিউরিটি দিক</span><p>Cookie-ই যদি পরিচয় হয়, তবে কেউ cookie চুরি করলে সে-ই “Susan” হয়ে যায় → <b>session hijacking</b> (Lecture 24–25)। আর cookie দিয়ে সাইট তোমার অনেক তথ্য জানে → <b>privacy</b> সমস্যা।</p></div>
+</section>
+
+<section class="topic" id="dns">
+  <h2>DNS — Domain Name System</h2>
+  <p>Internet host/router-এর দুটো পরিচয়: <b>IP address (32 bit)</b> — datagram-এর ঠিকানার জন্য, আর <b>নাম</b> (www.yahoo.com) — মানুষের জন্য। এদের মধ্যে mapping করে DNS:</p>
+  <ul><li>অনেক name server-এর <b>hierarchy</b>-তে তৈরি একটা <b>distributed database</b>,</li><li>নাম resolve করার <b>application-layer protocol</b>,</li><li>ইন্টারনেটের একটা <b>core function</b>।</li></ul>
+  <h3>DNS service</h3>
+  <ul><li>Hostname → IP translation</li><li>Host aliasing (একটা জটিল canonical নামের সহজ alias)</li><li>Mail server aliasing</li><li>Load distribution — replicated web server: একটা নামের জন্য অনেক IP (যেমন amazon.com)</li></ul>
+  <div class="box exam"><span class="label">🎯 কেন DNS centralised নয়?</span><p>(১) <b>Single point of failure</b> — এক সার্ভার পড়লে পুরো ইন্টারনেট অচল। (২) <b>Traffic volume</b> — সারা বিশ্বের query এক জায়গায় সামলানো অসম্ভব। (এছাড়া দূরত্ব ও maintenance-ও সমস্যা।)</p></div>
+  <h3>Hierarchy</h3>
+  <div class="formula">                    Root DNS servers
+          ┌──────────────┼──────────────┐
+      com DNS         org DNS        edu DNS        ← TLD servers
+     ┌───┴────┐         │          ┌───┴────┐
+ yahoo.com amazon.com  pbs.org  poly.edu umass.edu  ← Authoritative servers</div>
+  <div class="tbl-wrap"><table>
+    <tr><th>সার্ভার</th><th>দায়িত্ব</th></tr>
+    <tr><td><b>Root</b></td><td>Local server resolve করতে না পারলে যোগাযোগ করে; mapping না জানলে authoritative সার্ভারের দিকে পাঠায়, mapping ফেরত দেয়</td></tr>
+    <tr><td><b>TLD</b></td><td>com, org, net, edu এবং দেশভিত্তিক uk, fr, ca, jp, bd। (com — Network Solutions; edu — Educause)</td></tr>
+    <tr><td><b>Authoritative</b></td><td>প্রতিষ্ঠানের নিজের DNS — তাদের web/mail সার্ভারের authoritative hostname→IP; প্রতিষ্ঠান বা service provider চালায়</td></tr>
+    <tr><td><b>Local (default)</b></td><td>Hierarchy-র অংশ নয়; প্রতিটা ISP/ভার্সিটি/কোম্পানির থাকে। Host-এর query প্রথমে এখানে যায়; proxy হিসেবে hierarchy-তে forward করে</td></tr>
+  </table></div>
+</section>
+
+<section class="topic" id="resolve">
+  <h2>DNS Name Resolution ও Caching</h2>
+  <p>উদাহরণ: <code>me.cs.vt.edu</code>-র host জানতে চায় <code>gaia.cs.umass.edu</code>-র IP।</p>
+  <div class="lab"><span class="label">🧪 DNS lookup simulator (iterated query)</span>
+    <div class="row"><label for="dq">কোন নাম?</label><select id="dq"><option>gaia.cs.umass.edu</option><option>www.amazon.com</option><option>www.sust.edu</option></select><button class="btn" id="dgo">পরের ধাপ →</button><button class="btn ghost" id="dreset">রিসেট</button></div>
+    <div class="out" id="dout"></div>
+    <p style="font-size:.9rem">দুবার একই নাম খুঁজে দেখো — দ্বিতীয়বার <b>cache</b> থেকে এক ধাপেই উত্তর!</p>
+  </div>
+  <h3>Caching</h3>
+  <ul>
+    <li>কোনো name server mapping শিখলে সেটা <b>cache</b> করে রাখে।</li>
+    <li>Cache entry কিছু সময় পর <b>timeout (TTL)</b> হয়ে মুছে যায়।</li>
+    <li>TLD সার্ভারের ঠিকানা সাধারণত local name server-এ cached থাকে → root server-এ খুব কম যেতে হয়।</li>
+    <li><code>dig</code> ও <code>nslookup</code> দিয়ে DNS-কে সরাসরি প্রশ্ন করা যায়।</li>
+  </ul>
+  <div class="box warn"><span class="label">🔒 সিকিউরিটি দিক</span><p>Cache থাকায় একবার ভুল (ভুয়া) উত্তর ঢুকিয়ে দিতে পারলে TTL শেষ না হওয়া পর্যন্ত সবাই ভুল সাইটে যাবে → <b>DNS cache poisoning</b> (Lecture 21)। DNS মূলত authentication ছাড়াই তৈরি।</p></div>
+</section>
+
+<section class="topic" id="email">
+  <h2>Email: SMTP, POP, IMAP</h2>
+  <p>তিনটা প্রধান উপাদান: <b>user agent</b>, <b>mail server</b>, এবং mail transfer protocol <b>SMTP</b>।</p>
+  <ul>
+    <li><b>User agent</b> (“mail reader”) — মেইল লেখা, সম্পাদনা, পড়া; যেমন Outlook। আসা-যাওয়ার মেইল সার্ভারে থাকে।</li>
+    <li><b>Mail server</b> — ব্যবহারকারীদের <b>mailbox</b> (আসা মেইল) ও <b>message queue</b> (পাঠানোর অপেক্ষায় থাকা মেইল)। সার্ভারগুলোর মধ্যে SMTP: পাঠানো সার্ভার = client, গ্রহণকারী = server।</li>
+  </ul>
+  <h3>SMTP (Simple Mail Transfer Protocol)</h3>
+  <ul><li>TCP দিয়ে নির্ভরযোগ্যভাবে পাঠায়, <b>port 25</b>।</li><li>সরাসরি transfer: পাঠানো সার্ভার → গ্রহণকারী সার্ভার।</li><li>তিন phase: <b>handshaking</b> (greeting) → <b>transfer</b> → <b>closure</b>।</li><li>Command/response: command = ASCII text, response = status code + phrase।</li><li>বার্তা অবশ্যই <b>7-bit ASCII</b>।</li></ul>
+  <h3>Alice → Bob</h3>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">👩 Alice UA</span><span class="arr">→</span><span class="node">📮 crepes.fr</span></div><p><b>১–২:</b> Alice user agent দিয়ে bob@hamburger.edu-কে মেইল লেখে; UA মেইলটা তার mail server-এ পাঠায়, সেখানে message queue-তে রাখা হয়।</p></div>
+    <div class="step"><div class="flow"><span class="node">📮 crepes.fr</span><span class="arr">SMTP / TCP :25 →</span><span class="node b">📮 hamburger.edu</span></div><p><b>৩–৪:</b> SMTP-র client অংশ Bob-এর mail server-এর সাথে TCP connection খোলে ও মেইল পাঠায়।</p></div>
+    <div class="step"><div class="flow"><span class="node b">📮 hamburger.edu</span><span class="arr">📥 mailbox →</span><span class="node">👨 Bob UA</span></div><p><b>৫–৬:</b> Bob-এর সার্ভার মেইল Bob-এর mailbox-এ রাখে; Bob user agent দিয়ে পড়ে (POP/IMAP/HTTP)।</p></div>
+  </div>
+  <div class="formula">S: 220 hamburger.edu
+C: HELO crepes.fr
+S: 250 Hello crepes.fr, pleased to meet you
+C: MAIL FROM: &lt;alice@crepes.fr&gt;
+S: 250 alice@crepes.fr... Sender ok
+C: RCPT TO: &lt;bob@hamburger.edu&gt;
+S: 250 bob@hamburger.edu ... Recipient ok
+C: DATA
+S: 354 Enter mail, end with "." on a line by itself
+C: Do you like ketchup?
+C: .
+S: 250 Message accepted for delivery
+C: QUIT
+S: 221 hamburger.edu closing connection</div>
+  <div class="box warn"><span class="label">🔒 লক্ষ্য করো</span><p><code>MAIL FROM:</code>-এ client যা খুশি লিখতে পারে — SMTP কোনো যাচাই করে না! তাই ভুয়া প্রেরকের মেইল (email spoofing / masquerading) এত সহজ।</p></div>
+  <h3>Mail access protocol (সার্ভার থেকে নামানো)</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Protocol</th><th>বৈশিষ্ট্য</th></tr>
+    <tr><td><b>POP</b> (RFC 1939)</td><td>Authorization (agent ⇄ server) ও download — সরল</td></tr>
+    <tr><td><b>IMAP</b> (RFC 1730)</td><td>বেশি ফিচার (সার্ভারে folder ইত্যাদি), বেশি জটিল</td></tr>
+    <tr><td><b>HTTP(S)</b></td><td>Gmail, Hotmail, Yahoo! Mail — browser দিয়ে</td></tr>
+  </table></div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="1">
+    <div class="q">১) HTTP ডিফল্টভাবে কোন port ও transport ব্যবহার করে?</div>
+    <button class="opt">UDP 53</button><button class="opt">TCP 80</button><button class="opt">TCP 25</button><button class="opt">TCP 443</button>
+    <div class="explain">HTTP = TCP 80; SMTP = 25; DNS = 53; HTTPS = 443।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">২) <code>www.someserver.com/user?username=tom&amp;password=password</code> — এতে কী সমস্যা?</div>
+    <button class="opt">কোনো সমস্যা নেই</button><button class="opt">POST ব্যবহার হয়েছে</button><button class="opt">Status code ভুল</button><button class="opt">GET-এ password URL-এ দৃশ্যমান — history/log-এ থেকে যায়</button>
+    <div class="explain">GET-এ input URL-এ যায়।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) Host-এর DNS query প্রথমে কোথায় যায়?</div>
+    <button class="opt">Local (default) name server</button><button class="opt">Root server</button><button class="opt">TLD server</button><button class="opt">Authoritative server</button>
+    <div class="explain">Local server proxy হিসেবে hierarchy-তে forward করে।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">৪) কোনটা SMTP-র বৈশিষ্ট্য নয়?</div>
+    <button class="opt">Port 25</button><button class="opt">7-bit ASCII</button><button class="opt">মেইল সার্ভার থেকে নামানো (retrieval)</button><button class="opt">Handshake–transfer–closure</button>
+    <div class="explain">Retrieval হলো POP/IMAP-এর কাজ; SMTP পাঠায় (push)।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>HTTP কেন stateless? State কীভাবে রাখা হয় (cookie-র চার উপাদান)?</li>
+    <li>GET ও POST-এর পার্থক্য।</li>
+    <li>Status code 200, 301, 400, 404, 505।</li>
+    <li>DNS hierarchy আঁকো; root, TLD, authoritative, local server-এর কাজ।</li>
+    <li>কেন DNS centralised নয়? DNS caching কী?</li>
+    <li>Alice থেকে Bob-এ ইমেইল যাওয়ার ধাপ; POP বনাম IMAP।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture10.html"><small>← আগের লেকচার</small>Lecture 10: Cryptographic Protocols</a>
+  <a class="next" href="lecture20.html"><small>পরের লেকচার →</small>Lecture 20: Network Attacks I</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l19.js"></script>
+</body>
+</html>

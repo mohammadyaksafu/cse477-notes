@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 20 · Network Attacks I</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L20">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 20 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 20</div>
+  <h1>Network Attacks I — Sniffing, Scanning, ARP ও IP Spoofing</h1>
+  <p>আক্রমণের দুই ধরন ও চার হুমকি, MITM, packet sniffing ও তা ধরা/ঠেকানো, footprinting ও scanning (ping sweep, port scan, nmap), তারপর active আক্রমণ: ARP spoofing ও IP spoofing (blind / non-blind) এবং তাদের প্রতিকার।</p>
+  <div class="chips"><span class="chip">Interception · Modification · Fabrication · Interruption</span><span class="chip">MITM</span><span class="chip">ARP watch</span><span class="chip">nmap</span><span class="chip">ARP spoofing</span><span class="chip">IP traceback</span></div>
+</div>
+
+<section class="topic" id="types">
+  <h2>আক্রমণ ও হুমকির ধরন</h2>
+  <div class="grid">
+    <div class="box"><span class="label">🔨 Active attack</span><p>Target-কে modify, misconfigure বা disrupt করে — প্রসেস/সিস্টেম/ডেটা বদলানো, communication channel বিঘ্নিত করা।</p></div>
+    <div class="box"><span class="label">👂 Passive attack</span><p>Target-কে না বদলে শুধু পর্যবেক্ষণ।</p></div>
+  </div>
+  <h3>চার ধরনের হুমকি (Threat)</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Threat</th><th>অর্থ</th><th>কোন লক্ষ্য ভাঙে</th><th>ধরন</th></tr>
+    <tr><td><b>Interception</b></td><td>অননুমোদিতভাবে তথ্য দেখা</td><td>Confidentiality</td><td>Passive</td></tr>
+    <tr><td><b>Modification</b></td><td>অননুমোদিতভাবে তথ্য বদলানো</td><td>Integrity</td><td>Active</td></tr>
+    <tr><td><b>Fabrication</b></td><td>অননুমোদিতভাবে তথ্য তৈরি</td><td>Integrity (authenticity)</td><td>Active</td></tr>
+    <tr><td><b>Interruption</b></td><td>অনুমোদিত access বন্ধ করা</td><td>Availability</td><td>Active</td></tr>
+  </table></div>
+  <div class="box story"><span class="label">📖 ডাকপিয়নের উপমা</span><p>অসৎ ডাকপিয়ন চিঠি খুলে পড়ল (interception), লেখা বদলে দিল (modification), নিজেই একটা ভুয়া চিঠি লিখে দিল (fabrication), চিঠি ফেলেই দিল (interruption)।</p></div>
+  <h3>Passive আক্রমণ</h3>
+  <ul><li><b>Eavesdropping (Sniffing)</b> — অন্যের packet শোনা।</li><li><b>Footprinting (Network mapping)</b> — সিস্টেমে কী সফটওয়্যার আছে পরীক্ষা করা।</li></ul>
+</section>
+
+<section class="topic" id="mitm">
+  <h2>Man-in-the-Middle (MITM)</h2>
+  <div class="flow" style="justify-content:center"><span class="node">👩 Alice</span><span class="arr">⇄</span><span class="node" style="border-color:var(--bad)">😈 Charlie</span><span class="arr">⇄</span><span class="node b">👨 Bob</span></div>
+  <p>Charlie, Alice ও Bob-এর মাঝখানে। Charlie পারে ট্রাফিক:</p>
+  <div class="grid"><div class="box"><span class="label">👀 View</span><p>দেখা</p></div><div class="box"><span class="label">✏️ Change</span><p>বদলানো</p></div><div class="box"><span class="label">➕ Add</span><p>যোগ করা</p></div><div class="box"><span class="label">🗑️ Delete</span><p>মুছে ফেলা</p></div></div>
+  <p>Charlie কে হতে পারে? — <b>ISP</b>, <b>VPN provider</b>, কফিশপের <b>WiFi provider</b>, অথবা তোমার connection re-route করা কোনো <b>attacker</b>।</p>
+  <div class="box example"><span class="label">💡 MITM scenario</span><p>তুমি ক্যাফের ফ্রি WiFi “Cafe_Free”-তে যুক্ত হলে — কিন্তু সেটা আসলে পাশের টেবিলের হ্যাকারের ল্যাপটপের hotspot। তোমার সব ট্রাফিক তার মাধ্যমে ইন্টারনেটে যাচ্ছে; HTTP হলে সে সব পড়তে ও বদলাতে পারে।</p></div>
+</section>
+
+<section class="topic" id="sniff">
+  <h2>Packet Sniffing</h2>
+  <p>নেটওয়ার্ক দিয়ে যাওয়া তথ্য “পড়া”। Sniffer packet আটকায়, প্রায়ই <b>ARP cache poisoning</b> দিয়ে। Sniffer software বা hardware হতে পারে, এবং নেটওয়ার্ক সেটআপের উপর নির্ভরশীল।</p>
+  <div class="tabs">
+    <div class="tab-btns"><button>✅ বৈধ ব্যবহার</button><button>😈 ক্ষতিকর ব্যবহার</button></div>
+    <div class="tab-pane"><ul><li>নেটওয়ার্ক ব্যবহার মনিটর</li><li>ট্রাফিক filter</li><li>নেটওয়ার্ক সমস্যা বিশ্লেষণ (যেমন Wireshark)</li></ul></div>
+    <div class="tab-pane"><ul><li>তথ্য চুরি — password, কথোপকথন</li><li>আক্রমণের প্রস্তুতির জন্য নেটওয়ার্ক তথ্য বিশ্লেষণ</li></ul></div>
+  </div>
+  <h3>Sniffer ধরা (Detecting)</h3>
+  <ul>
+    <li>Sniffer প্রায় সবসময় <b>passive</b> — শুধু ডেটা জমায়, তাই ধরা <b>খুব কঠিন</b>।</li>
+    <li>Switched নেটওয়ার্কে সমাধান: <b>ARP watch</b> — ARP cache-এ একই মেশিনের <b>duplicate entry</b> দেখলে alarm।</li>
+    <li>সমস্যা: <b>false alarm</b> — বিশেষত DHCP নেটওয়ার্কে একই মেশিনের একাধিক এন্ট্রি স্বাভাবিক।</li>
+  </ul>
+  <h3>Sniffer ঠেকানো (Stopping)</h3>
+  <ul>
+    <li><b>সেরা উপায়: packet নিরাপদে encrypt করা</b> — sniffer ধরলেও সব garbage।</li>
+    <li><b>SSH</b> — public/private key pair থাকায় sniffing প্রায় অকেজো।</li>
+    <li>Switched নেটওয়ার্কে প্রায় সব আক্রমণ ARP spoofing দিয়ে → মেশিনগুলো cache-এর <b>permanent (static) store</b>-এ রাখো; broadcast reply দিয়ে তা বদলানো যায় না।</li>
+    <li>সবচেয়ে ভালো: <b>ঢুকতেই না দেওয়া</b> — sniffer-কে তোমার subnet-এ থাকতে হয়, আর চালু হতে কোনো এক সময় root লাগে।</li>
+  </ul>
+</section>
+
+<section class="topic" id="scan">
+  <h2>Footprinting ও Scanning</h2>
+  <p>Footprinting প্রায়ই আক্রমণের <b>প্রথম ধাপ</b> — target সম্পর্কে তথ্য সংগ্রহ। Scanning দিয়ে জানা যায়: কোন OS, কোন সার্ভিস চলছে, কোনো configuration ভুল আছে কি না।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Scanning-এর ধরন</th><th>কী খোঁজে</th></tr>
+    <tr><td><b>Network scanning</b></td><td>জীবিত IP address</td></tr>
+    <tr><td><b>Port scanning</b></td><td>খোলা port ও সার্ভিস</td></tr>
+    <tr><td><b>Vulnerability scanning</b></td><td>পরিচিত দুর্বলতার উপস্থিতি</td></tr>
+  </table></div>
+  <h3>Scanning-এর উদ্দেশ্য</h3>
+  <ol><li>Live host ও তাদের IP খোঁজা।</li><li>খোলা port খোঁজা — সিস্টেমে ঢোকার সেরা পথ।</li><li>প্রতিটা port-এর সার্ভিস শনাক্ত।</li><li>OS ও system architecture শনাক্ত — একে <b>fingerprinting</b> বলে; তারপর সেই OS-এর দুর্বলতা দিয়ে আক্রমণ।</li></ol>
+  <h3>Network scanning</h3>
+  <ul>
+    <li><b>Non-targeted — ICMP scanning (ping):</b> host-এ ICMP <b>ECHO request</b> পাঠাও; জীবিত হলে <b>ECHO reply</b> দেয়। Active device খোঁজা বা firewall ICMP যেতে দেয় কি না দেখতে কাজে লাগে।</li>
+    <li><b>Ping sweep:</b> একটা IP range-এর কোনগুলো live host তা বের করা। সবচেয়ে জনপ্রিয় টুল <b>nmap</b>।</li>
+    <li><b>Targeted:</b> পরিচিত সার্ভারের IP DNS দিয়ে বের করা — <code>nslookup</code> মনে আছে?</li>
+  </ul>
+  <h3>Port scanning</h3>
+  <div class="box story"><span class="label">📖 উপমা</span><p>Port হলো বাড়ির দরজা; port scanning মানে প্রতিটা দরজায় টোকা দিয়ে দেখা কোনটা খোলা। পরিচিত দরজা: web <b>80</b>, FTP <b>21</b>, SMTP <b>25</b> — আরও অনেক অ্যাপের জন্যও port খোলা থাকে। টুল: <b>nmap</b>।</p></div>
+  <div class="lab"><span class="label">🧪 Ping sweep + port scan simulator (কাল্পনিক ল্যাব নেটওয়ার্ক 192.168.1.0/28)</span>
+    <div class="row"><button class="btn" id="sweep">১) Ping sweep চালাও</button><select id="phost"></select><button class="btn ghost" id="pscan">২) এই host-এ port scan</button></div>
+    <div class="out" id="sout"></div>
+  </div>
+  <div class="box warn"><span class="label">⚖️ নৈতিকতা</span><p>অনুমতি ছাড়া অন্যের নেটওয়ার্কে nmap চালানো বেআইনি হতে পারে। শুধু নিজের ল্যাবে বা লিখিত অনুমতি নিয়ে।</p></div>
+</section>
+
+<section class="topic" id="arp">
+  <h2>ARP Spoofing</h2>
+  <p>ARP (IP → MAC ঠিকানা খোঁজার protocol) সরল ও কার্যকর, কিন্তু এর <b>কোনো authentication নেই</b>:</p>
+  <ul><li>নেটওয়ার্কের যেকোনো কম্পিউটার দাবি করতে পারে “চাওয়া IP আমার”।</li><li>আরও খারাপ: কোনো মেশিন ARP reply পেলে — <b>আগে request না পাঠালেও</b> — নিজের ARP cache আপডেট করে ফেলে।</li></ul>
+  <p>ফলে LAN-এর ক্ষতিকর কেউ ARP spoofing করতে পারে।</p>
+  <div class="lab"><span class="label">🧪 ARP cache poisoning simulator</span>
+    <div class="row"><button class="btn" id="anormal">স্বাভাবিক ARP</button><button class="btn ghost" id="aspoof">😈 Attacker ভুয়া ARP reply পাঠাক</button><button class="btn ghost" id="awatch">🔔 ARP watch চালাও</button></div>
+    <div class="out" id="aout"></div>
+  </div>
+  <h3>প্রতিকার</h3>
+  <ul>
+    <li>LAN access শুধু বিশ্বস্ত ব্যবহারকারীদের।</li>
+    <li>LAN-এ <b>একই MAC address-এর একাধিক উপস্থিতি</b> খোঁজা — সাধারণত এক MAC এক যন্ত্রের; একাধিক মানে সম্ভবত spoofed।</li>
+    <li>Admin-এর কনফিগার করা <b>static ARP table</b> — কিন্তু ঝামেলাপূর্ণ (প্রতিটা পরিবর্তনে হাতে আপডেট)।</li>
+  </ul>
+</section>
+
+<section class="topic" id="ipspoof">
+  <h2>IP Spoofing</h2>
+  <p>Intruder এক IP থেকে packet পাঠায় যেন মনে হয় আরেক IP থেকে এসেছে (source address জাল)। Session authenticate করার পর server যদি ভাবে আসল উৎস থেকেই বার্তা আসছে, সে অজান্তে ক্ষতিকর আচরণ করতে পারে।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th></th><th>Blind spoofing</th><th>Non-blind spoofing</th></tr>
+    <tr><td>কোথা থেকে</td><td>যেকোনো উৎস থেকে</td><td>একই subnet থেকে</td></tr>
+    <tr><td>Sequence/ACK number</td><td>দেখতে পায় না — <b>অনুমান</b> করতে হয়</td><td>Sniffer দিয়ে packet দেখে pattern বের করে</td></tr>
+    <tr><td>কঠিনতা</td><td>কঠিন</td><td>সহজ</td></tr>
+  </table></div>
+  <p><b>Blind:</b> TCP/IP-তে session জুড়ে acknowledgement number পাঠাতে হয় (দুই পক্ষ নিশ্চিত হয় তারা একে অপরের packet পাচ্ছে)। IP পরিচয় spoof করতে ঠিক ACK sequence লাগে।</p>
+  <p><b>Non-blind:</b> একই subnet-এ sniffer দিয়ে packet decode করে ACK sequence pattern বের করে, তারপর আসল client-এর IP ও সঠিক sequence-এর ACK number দিয়ে সার্ভারে বার্তা পাঠায়।</p>
+  <h3>মোটিভেশন — উত্তর তো আসবে না, তাহলে কেন?</h3>
+  <p>Spoofed source দিলে উত্তর যায় সেই জাল ঠিকানায়, attacker-এর কাছে নয়। তাই IP spoofing ব্যবহার হয় এমন আক্রমণে যেখানে:</p>
+  <ul><li>Attacker উত্তরের পরোয়া করে না — যেমন <b>DoS</b>: শুধু অন্য host-কে request দিয়ে ডুবিয়ে দিতে চায় (Smurf, SYN flood — Lecture 21)।</li><li>অথবা উত্তর পাওয়ার অন্য উপায় আছে — <b>firewall policy ফাঁকি</b>, <b>TCP session hijacking</b>।</li></ul>
+  <h3>প্রতিকার</h3>
+  <div class="box warn"><span class="label">⚠️</span><p>IP spoofing <b>পুরোপুরি ঠেকানো যায় না</b>, তবে সামলানো যায়।</p></div>
+  <ul>
+    <li><b>Border router</b> (দুই subnet-এর সংযোগে) এমনভাবে কনফিগার করা যে নিজের domain-এর বাইরের source address-ওয়ালা packet ভেতর থেকে বের হতে না পারে (ingress/egress filtering)।</li>
+    <li><b>IP traceback</b> — packet-এর পথ ধরে আসল উৎস খোঁজা; তারপর পথের autonomous system-গুলোকে সেখান থেকে আসা packet block করতে বলা।</li>
+    <li>আসল উৎসের ISP-কে সন্দেহজনক মেশিন সম্পূর্ণ block রাখতে বলা, যতক্ষণ না malware-মুক্ত প্রমাণ হয়।</li>
+  </ul>
+  <div class="quiz" data-answer="1">
+    <div class="q">একই subnet-এ বসে sniffer দিয়ে sequence number দেখে IP spoof করা — কোন ধরন?</div>
+    <button class="opt">Blind spoofing</button><button class="opt">Non-blind spoofing</button><button class="opt">ARP watch</button><button class="opt">Ping sweep</button>
+    <div class="explain">Subnet-এ বসে দেখতে পায় → non-blind।</div>
+  </div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="2">
+    <div class="q">১) “Fabrication” কোন লক্ষ্যের বিরুদ্ধে?</div>
+    <button class="opt">Confidentiality</button><button class="opt">Availability</button><button class="opt">Integrity</button><button class="opt">Anonymity</button>
+    <div class="explain">ভুয়া তথ্য তৈরি → integrity।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">২) Sniffer ঠেকানোর সেরা উপায়?</div>
+    <button class="opt">Packet encrypt করা</button><button class="opt">Ping বন্ধ রাখা</button><button class="opt">nmap চালানো</button><button class="opt">DHCP চালু রাখা</button>
+    <div class="explain">ধরলেও অর্থহীন garbage।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৩) OS ও system architecture শনাক্ত করাকে কী বলে?</div>
+    <button class="opt">Sweeping</button><button class="opt">Spoofing</button><button class="opt">Poisoning</button><button class="opt">Fingerprinting</button>
+    <div class="explain">স্লাইড: এটাকে fingerprinting বলে।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">৪) ARP spoofing কেন সম্ভব?</div>
+    <button class="opt">ARP এনক্রিপ্টেড</button><button class="opt">ARP-এ authentication নেই, আর অযাচিত reply-ও cache আপডেট করে</button><button class="opt">ARP port 80-তে চলে</button><button class="opt">ARP শুধু DNS-এ লাগে</button>
+    <div class="explain">Identity verification-এর অভাব।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>Interception, modification, fabrication, interruption — কোনটা কোন লক্ষ্য ভাঙে?</li>
+    <li>MITM-এ Charlie কী কী করতে পারে ও কে হতে পারে?</li>
+    <li>Sniffer কীভাবে ধরবে ও ঠেকাবে? ARP watch-এর সীমাবদ্ধতা।</li>
+    <li>Scanning-এর তিন ধরন ও উদ্দেশ্য; ping sweep।</li>
+    <li>ARP spoofing ব্যাখ্যা ও প্রতিকার।</li>
+    <li>Blind বনাম non-blind IP spoofing; উত্তর না পেলেও attacker কেন IP spoof করে; প্রতিকার।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture19.html"><small>← আগের লেকচার</small>Lecture 19: HTTP, DNS, Email</a>
+  <a class="next" href="lecture21.html"><small>পরের লেকচার →</small>Lecture 21: Network Attacks II</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l20.js"></script>
+</body>
+</html>

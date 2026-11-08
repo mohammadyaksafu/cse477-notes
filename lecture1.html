@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 1–2 · Security Basics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L1">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 1–2 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 1 &amp; 2</div>
+  <h1>কেন সিকিউরিটি? — মূল ধারণা, লক্ষ্য ও আক্রমণ</h1>
+  <p>কোর্সের শুরু: ইন্টারনেট-নির্ভর পৃথিবীতে সিকিউরিটি কেন জরুরি, “computer security” আসলে কী, CIA (Confidentiality–Integrity–Availability) আর অতিরিক্ত লক্ষ্যগুলো (Assurance, Authenticity, Anonymity), এবং passive ও active আক্রমণের ধরন।</p>
+  <div class="chips"><span class="chip">CIA triad</span><span class="chip">AAA: Assurance · Authenticity · Anonymity</span><span class="chip">Passive vs Active</span><span class="chip">Heartbleed · WannaCry</span></div>
+</div>
+
+<section class="topic" id="motivation">
+  <h2>Motivation: কেন সিকিউরিটি পড়ব?</h2>
+  <p>স্লাইডের পরিসংখ্যান (কোর্স তৈরির সময়ের): প্রায় <b>4.77 বিলিয়ন মোবাইল</b>, <b>4 বিলিয়ন ইন্টারনেট ব্যবহারকারী</b>, <b>320 মিলিয়ন domain name</b>, আর <b>$2300 বিলিয়ন</b> e-commerce বিক্রি — প্রতিনিয়ত বাড়ছে। জীবনের প্রায় সব ক্ষেত্র ইন্টারনেট ও ওয়েব সার্ভিসের উপর নির্ভরশীল; উন্নত দেশে বেশি, উন্নয়নশীল দেশগুলোও দ্রুত ধরছে।</p>
+  <div class="box story"><span class="label">📖 গল্প</span><p>ধরো তোমার বিকাশ/নগদ অ্যাকাউন্ট, ভার্সিটির রেজাল্ট, হাসপাতালের রিপোর্ট — সব অনলাইনে। যত বেশি জিনিস অনলাইনে যায়, চোরের জন্য “লুটের মাল” তত বাড়ে। তাই নির্ভরতা বাড়লে সিকিউরিটির গুরুত্বও বাড়ে।</p></div>
+  <h3>স্লাইডে দেখানো বাস্তব ঘটনা</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>ঘটনা</th><th>কী হয়েছিল</th><th>কোন লক্ষ্য ভেঙেছে</th></tr>
+    <tr><td><b>Heartbleed (2014)</b></td><td>OpenSSL-এর bug — সার্ভারের memory থেকে private key, password ফাঁস হতো। লাখো HTTPS সাইট আক্রান্ত।</td><td>Confidentiality</td></tr>
+    <tr><td><b>WannaCry (2017)</b></td><td>Ransomware — ফাইল এনক্রিপ্ট করে মুক্তিপণ চাইত; হাসপাতালসহ ১৫০+ দেশে ছড়ায়।</td><td>Availability (+Integrity)</td></tr>
+    <tr><td><b>Target / Home Depot breach</b></td><td>কোটি কোটি ক্রেডিট কার্ডের তথ্য চুরি।</td><td>Confidentiality</td></tr>
+  </table></div>
+  <p>স্লাইডে একটা <b>historical timeline</b>-ও আছে — প্রাচীন cipher থেকে শুরু করে Morris worm, আধুনিক malware পর্যন্ত; বার্তা একটাই: আক্রমণ ক্রমাগত আরও জটিল হচ্ছে।</p>
+</section>
+
+<section class="topic" id="whatis">
+  <h2>Computer security কী?</h2>
+  <div class="box exam"><span class="label">🎯 সংজ্ঞা</span><p><b>Computer security</b> হলো <b>adversarial environment</b>-এ (যেখানে সম্ভাব্য শত্রু আছে) চলা কম্পিউটার সিস্টেমের সুরক্ষা। এর লক্ষ্য: <b>intended use অনুমোদন করা</b> এবং <b>unintended use ঠেকানো</b>।</p></div>
+  <p>এই কোর্সে আমরা দেখব: (১) সিস্টেম <b>কেন</b> insecure, (২) কীভাবে <b>secure</b> বানানো যায়। Adversary সিস্টেমে ঢোকার চেষ্টা করে; আমরা চাই সিস্টেমে কিছু security property থাকুক — Confidentiality, Integrity, Availability, Authenticity, Anonymity…</p>
+  <h3>Attacker-এর মোটিভেশন</h3>
+  <div class="grid">
+    <div class="box"><span class="label">💔 ব্যক্তিগত</span><p>প্রাক্তন স্বামী/স্ত্রী, ক্ষুব্ধ কর্মচারী</p></div>
+    <div class="box"><span class="label">💰 আর্থিক</span><p>কার্ড চুরি, ransomware</p></div>
+    <div class="box"><span class="label">🏛️ রাজনৈতিক</span><p>রাষ্ট্রীয় হ্যাকিং, hacktivism</p></div>
+  </div>
+  <h3>Security সবসময় আপেক্ষিক</h3>
+  <p>কোনো system/application/protocol-এর security সবসময় দুটো জিনিসের সাপেক্ষে:</p>
+  <ul><li>একটা <b>কাঙ্ক্ষিত property-র সেট</b> (কী রক্ষা করতে চাই),</li><li>নির্দিষ্ট <b>সামর্থ্যসম্পন্ন একজন adversary</b> (কার বিরুদ্ধে)।</li></ul>
+  <p>একাডেমিক security মানে সিস্টেমে ঢোকা বা আক্রমণ চালানো শেখা <b>নয়</b> — বরং সিস্টেম কেন insecure ও কীভাবে secure করা যায় তা বোঝা।</p>
+  <div class="box example"><span class="label">💡 উদাহরণ</span><p>বাসার তালা “নিরাপদ” কি না নির্ভর করে — কে আসছে? পাড়ার ছিঁচকে চোর হলে সাধারণ তালাই যথেষ্ট; পেশাদার ডাকাতদল হলে নয়। একই সিস্টেম এক adversary-র বিরুদ্ধে নিরাপদ, আরেকজনের বিরুদ্ধে নয়।</p></div>
+  <h3>রিসোর্স</h3>
+  <ul><li><b>Textbook:</b> Introduction to Computer Security — Goodrich &amp; Tamassia (1st ed.)</li><li>Matt Bishop — Introduction to Computer Security</li><li>Handbook of Applied Cryptography — Menezes, van Oorschot, Vanstone</li></ul>
+</section>
+
+<section class="topic" id="confidentiality">
+  <h2>Confidentiality: Secrecy ও Privacy</h2>
+  <p><b>Confidentiality</b> = তথ্যে অননুমোদিত access ও প্রকাশ ঠেকানো। দুটো মাত্রা:</p>
+  <div class="grid">
+    <div class="box"><span class="label">🤐 Secrecy</span><p>গোপন তথ্য অননুমোদিত কারো কাছে প্রকাশ পাবে না।</p></div>
+    <div class="box"><span class="label">🙋 Privacy</span><p>ব্যক্তি নিজে নিয়ন্ত্রণ করে তার কোন তথ্য কে সংগ্রহ/সংরক্ষণ করবে ও কাকে দেবে।</p></div>
+  </div>
+  <p>এর প্রয়োজন কম্পিউটারের চেয়েও পুরনো — Julius Caesar সেনাপতিদের কাছে সরল cipher দিয়ে আদেশ পাঠাতেন।</p>
+  <h3>Confidentiality-র ৫টা টুল</h3>
+  <div class="flash-grid">
+    <div class="flash" data-front="Encryption" data-back="Encryption key দিয়ে তথ্য রূপান্তর, যা শুধু decryption key দিয়ে পড়া যায় (দুটো একই হতে পারে)"></div>
+    <div class="flash" data-front="Access control" data-back="“Need to know” ভিত্তিতে access সীমিত করার নিয়ম — identity (নাম, serial no.) বা role (manager) দিয়ে"></div>
+    <div class="flash" data-front="Authentication" data-back="কারো identity/role নির্ধারণ — has (smart card), knows (password), is (fingerprint)"></div>
+    <div class="flash" data-front="Authorization" data-back="Access control policy অনুযায়ী কেউ resource access পাবে কি না নির্ধারণ"></div>
+    <div class="flash" data-front="Physical security" data-back="তালা, জানালাহীন ঘর, শব্দরোধী উপাদান, Faraday cage (copper mesh) — EM সিগন্যাল ঢুকতে/বেরোতে পারে না"></div>
+  </div>
+  <h3>Authentication-এর তিন factor</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Factor</th><th>উদাহরণ</th></tr>
+    <tr><td>🔑 Something you <b>have</b></td><td>Smart card, key fob, মোবাইলের OTP</td></tr>
+    <tr><td>🧠 Something you <b>know</b></td><td>Password, PIN</td></tr>
+    <tr><td>👆 Something you <b>are</b></td><td>Fingerprint, face, iris</td></tr>
+  </table></div>
+  <div class="lab"><span class="label">🧪 কোন factor? — ক্লিক করে মিলাও</span>
+    <div class="row" id="factorBtns"></div>
+    <div class="out" id="factorOut">একটা আইটেমে ক্লিক করো…</div>
+  </div>
+  <div class="box warn"><span class="label">⚠️ Authentication ≠ Authorization</span><p>Authentication = “তুমি কে?” (ATM-এ কার্ড+PIN)। Authorization = “তোমার কী করার অধিকার আছে?” (দিনে সর্বোচ্চ কত টাকা তুলতে পারবে)। আগে authentication, তারপর authorization।</p></div>
+</section>
+
+<section class="topic" id="integrity">
+  <h2>Integrity</h2>
+  <p><b>Integrity</b> = তথ্য/সিস্টেম অননুমোদিতভাবে পরিবর্তিত হয়নি। দুটো মাত্রা:</p>
+  <ul><li><b>Data integrity:</b> তথ্য ও প্রোগ্রাম শুধু নির্দিষ্ট ও অনুমোদিত উপায়ে বদলায়।</li><li><b>System integrity:</b> সিস্টেম তার কাজ অক্ষতভাবে করে, ইচ্ছাকৃত বা অনিচ্ছাকৃত অননুমোদিত হস্তক্ষেপমুক্ত।</li></ul>
+  <h3>টুলস</h3>
+  <ul>
+    <li><b>Backup</b> — পর্যায়ক্রমে ডেটা আর্কাইভ।</li>
+    <li><b>Checksum</b> — ফাইলের পুরো বিষয়বস্তুকে একটা সংখ্যায় ম্যাপ করে; একটা bit বদলালেও ফল বদলে যাওয়ার সম্ভাবনা খুব বেশি।</li>
+    <li><b>Data correcting code</b> — ছোট পরিবর্তন ধরতে ও নিজে থেকে ঠিক করতে পারে (যেমন RAID, QR code)।</li>
+    <li><b>Metadata manipulation</b>-এর বিরুদ্ধে সুরক্ষা।</li>
+  </ul>
+  <div class="lab"><span class="label">🧪 Checksum: একটা অক্ষর বদলাও</span>
+    <div class="row"><label for="ck">ফাইলের লেখা</label><input type="text" id="ck" value="Pay Rahim 500 taka" style="flex:1"></div>
+    <div class="out" id="ckOut"></div>
+    <p style="font-size:.9rem">সরল যোগফল-checksum (সব অক্ষরের ASCII যোগ mod 256) আর SHA-256 পাশাপাশি। “500”-কে “050” করে দেখো — সরল যোগফল বদলায় না (একই অক্ষর, ভিন্ন ক্রম), কিন্তু SHA-256 পুরো বদলে যায়। তাই ভালো checksum-কে পুরো বিষয়বস্তু ও ক্রম দুটোর উপরই নির্ভর করতে হবে।</p>
+  </div>
+</section>
+
+<section class="topic" id="availability">
+  <h2>Availability</h2>
+  <p><b>Availability</b> = তথ্য বা সিস্টেমে সময়মতো ও নির্ভরযোগ্য access নিশ্চিত করা। Availability হারানো মানে access বিঘ্নিত হওয়া।</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>কারণ</th><th>উদাহরণ</th></tr>
+    <tr><td>অনিচ্ছাকৃত/দুর্ঘটনা</td><td>আগুন, hard disk নষ্ট</td></tr>
+    <tr><td>ইচ্ছাকৃত/ক্ষতিকর</td><td>DDoS (Distributed Denial of Service)</td></tr>
+  </table></div>
+  <p><b>টুলস:</b> <b>Physical protection</b> (ভৌত বিপর্যয়েও তথ্য available রাখার অবকাঠামো — জেনারেটর, ভূমিকম্প-সহনশীল ডেটা সেন্টার) ও <b>Computational redundancy</b> (ব্যর্থ হলে fallback কম্পিউটার ও স্টোরেজ)।</p>
+  <div class="box story"><span class="label">📖 উপমা</span><p>রেজাল্ট প্রকাশের দিন ভার্সিটির সাইট ক্র্যাশ — কেউ তথ্য চুরি করেনি (confidentiality ঠিক), কেউ বদলায়নি (integrity ঠিক), কিন্তু কেউ দেখতেও পারছে না → availability ভাঙল।</p></div>
+  <div class="quiz" data-answer="2">
+    <div class="q">হ্যাকার একটা হাসপাতালের সব রোগীর ফাইল এনক্রিপ্ট করে মুক্তিপণ চাইল (ransomware)। মূলত কোন লক্ষ্য ভাঙল?</div>
+    <button class="opt">Confidentiality</button><button class="opt">Anonymity</button><button class="opt">Availability</button><button class="opt">Authenticity</button>
+    <div class="explain">ডাক্তাররা ফাইল ব্যবহার করতে পারছেন না → Availability। (ডেটা চুরি করে ফাঁসের হুমকি দিলে confidentiality-ও।)</div>
+  </div>
+</section>
+
+<section class="topic" id="aaa">
+  <h2>অতিরিক্ত লক্ষ্য: Assurance, Authenticity, Anonymity</h2>
+  <h3>Assurance</h3>
+  <p>কম্পিউটার সিস্টেমে <b>trust কীভাবে দেওয়া ও পরিচালনা</b> করা হয়। Trust management নির্ভর করে:</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>উপাদান</th><th>অর্থ</th><th>অনলাইন মিউজিক স্টোর উদাহরণ</th></tr>
+    <tr><td><b>Policy</b></td><td>মানুষ/সিস্টেমের আচরণগত প্রত্যাশা</td><td>ব্যবহারকারী কীভাবে গান access ও copy করবে</td></tr>
+    <tr><td><b>Permission</b></td><td>কোন আচরণ অনুমোদিত</td><td>যে গান কিনেছে সে সীমিত copy করতে পারবে</td></tr>
+    <tr><td><b>Protection</b></td><td>Permission ও policy প্রয়োগের mechanism</td><td>অননুমোদিত copy ঠেকানোর ব্যবস্থা (DRM)</td></tr>
+  </table></div>
+  <h3>Authenticity</h3>
+  <p>ব্যক্তি/সিস্টেমের দেওয়া বিবৃতি, policy, permission <b>আসল</b> এবং কাঙ্ক্ষিত উৎস থেকে এসেছে কি না নির্ধারণ। প্রধান টুল: <b>digital signature</b> — যা <b>non-repudiation</b> অর্জন করে (সই করা বিবৃতি পরে অস্বীকার করা যায় না)।</p>
+  <h3>Anonymity</h3>
+  <p>কোনো রেকর্ড বা লেনদেন কোনো নির্দিষ্ট ব্যক্তির সাথে যুক্ত করা যাবে না। টুলস:</p>
+  <div class="flash-grid">
+    <div class="flash" data-front="Aggregation" data-back="অনেকের ডেটা মিলিয়ে যোগফল/গড় প্রকাশ — কাউকে আলাদা করা যায় না (যেমন আদমশুমারি)"></div>
+    <div class="flash" data-front="Mixing" data-back="লেনদেন/যোগাযোগ এমনভাবে জট পাকানো যে কারো সাথে trace করা যায় না (যেমন Tor, mixnet)"></div>
+    <div class="flash" data-front="Proxy" data-back="বিশ্বস্ত এজেন্ট যে তোমার হয়ে কাজ করে, কিন্তু তোমার কাছে trace ফেরে না (যেমন VPN)"></div>
+    <div class="flash" data-front="Pseudonym" data-back="কাল্পনিক পরিচয় যা আসল পরিচয়ের বদলে চলে; আসলটা শুধু বিশ্বস্ত পক্ষ জানে"></div>
+  </div>
+</section>
+
+<section class="topic" id="attacks">
+  <h2>Security Attacks: Passive ও Active</h2>
+  <div class="grid">
+    <div class="box"><span class="label">👂 Passive</span><p>Transmission-এ আড়ি পাতা/মনিটর করা। লক্ষ্য: তথ্য পাওয়া ও বিশ্লেষণ। ডেটা বদলায় না → <b>ধরা কঠিন</b>; প্রতিরোধই ভরসা (encryption)।</p></div>
+    <div class="box"><span class="label">🔨 Active</span><p>Data stream বদলানো বা ভুয়া stream তৈরি। ধরা তুলনামূলক সহজ, কিন্তু পুরো ঠেকানো কঠিন।</p></div>
+  </div>
+  <div class="tbl-wrap"><table>
+    <tr><th>আক্রমণ</th><th>ধরন</th><th>সংজ্ঞা</th><th>উদাহরণ</th></tr>
+    <tr><td><b>Eavesdropping</b></td><td>Passive</td><td>অন্যের জন্য পাঠানো তথ্য পথে আটকে পড়া</td><td>পাবলিক WiFi-তে Eve তোমার HTTP ট্রাফিক পড়ছে</td></tr>
+    <tr><td><b>Masquerading</b></td><td>Active</td><td>এমন তথ্য বানানো যা অন্য কারো পাঠানো বলে দাবি করা</td><td>“ব্যাংক থেকে বলছি” ভুয়া ইমেইল</td></tr>
+    <tr><td><b>Alteration</b></td><td>Active</td><td>অননুমোদিত পরিবর্তন</td><td>“500 টাকা” → “5000 টাকা”</td></tr>
+    <tr><td><b>Replay</b></td><td>দুই রকম</td><td>Modify করে replay = active; শুধু দেখে-বিশ্লেষণ করে replay = passive</td><td>লগইন বার্তা রেকর্ড করে পরে আবার পাঠানো</td></tr>
+    <tr><td><b>Denial-of-service</b></td><td>Active</td><td>ডেটা সার্ভিস/তথ্য access বাধাগ্রস্ত বা ধীর করা</td><td>Spam দিয়ে mail queue ভরে ফেলে সার্ভার ধীর</td></tr>
+    <tr><td><b>Repudiation</b></td><td>অন্যান্য</td><td>প্রতিশ্রুতি বা ডেটা প্রাপ্তি অস্বীকার</td><td>“আমি তো অর্ডার দিইনি!”</td></tr>
+    <tr><td><b>Correlation &amp; traceback</b></td><td>অন্যান্য</td><td>একাধিক ডেটা উৎস মিলিয়ে কোনো তথ্যের উৎস বের করা</td><td>সময় মিলিয়ে Tor ব্যবহারকারী শনাক্ত</td></tr>
+  </table></div>
+  <div class="quiz" data-answer="1">
+    <div class="q">Mallory একটা ইমেইল পাঠাল যেটা দেখতে হুবহু তোমার ডিপার্টমেন্ট হেডের পাঠানো মনে হয়। এটা কোন আক্রমণ?</div>
+    <button class="opt">Eavesdropping</button><button class="opt">Masquerading</button><button class="opt">Alteration</button><button class="opt">Denial-of-service</button>
+    <div class="explain">অন্যের নামে তথ্য বানানো = Masquerading (Authenticity ভাঙে)।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">কোন আক্রমণ সবচেয়ে কঠিনে ধরা পড়ে?</div>
+    <button class="opt">Eavesdropping (passive)</button><button class="opt">Alteration</button><button class="opt">DoS</button><button class="opt">Masquerading</button>
+    <div class="explain">Passive আক্রমণ কিছু বদলায় না, তাই কোনো চিহ্ন থাকে না।</div>
+  </div>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="3">
+    <div class="q">১) “Faraday cage” কোন টুলের উদাহরণ?</div>
+    <button class="opt">Encryption</button><button class="opt">Authorization</button><button class="opt">Checksum</button><button class="opt">Physical security</button>
+    <div class="explain">Copper mesh-এর দেয়াল EM সিগন্যাল আটকায় — physical security (confidentiality-র টুল)।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">২) Digital signature মূলত কোন property দেয়?</div>
+    <button class="opt">Anonymity</button><button class="opt">Authenticity + Non-repudiation</button><button class="opt">Availability</button><button class="opt">Secrecy</button>
+    <div class="explain">স্লাইড: Authenticity-র প্রধান টুল digital signature, যা non-repudiation অর্জন করে।</div>
+  </div>
+  <div class="quiz" data-answer="2">
+    <div class="q">৩) বেতনের গড় প্রকাশ করা হলো কিন্তু কারো আলাদা বেতন নয় — কোন anonymity টুল?</div>
+    <button class="opt">Mixing</button><button class="opt">Pseudonym</button><button class="opt">Aggregation</button><button class="opt">Proxy</button>
+    <div class="explain">যোগফল/গড় = Aggregation।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৪) Privacy ও Secrecy — কোনটার মাত্রা?</div>
+    <button class="opt">Confidentiality</button><button class="opt">Integrity</button><button class="opt">Availability</button><button class="opt">Assurance</button>
+    <div class="explain">Confidentiality-র দুই dimension।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>Computer security সংজ্ঞায়িত করো; “security is relative” বলতে কী বোঝায়?</li>
+    <li>CIA triad ব্যাখ্যা করো ও প্রত্যেকটার টুল লেখো।</li>
+    <li>Secrecy ও privacy-র পার্থক্য; data integrity ও system integrity-র পার্থক্য।</li>
+    <li>Authentication-এর তিন factor উদাহরণসহ।</li>
+    <li>Assurance-এর policy, permission, protection ব্যাখ্যা করো।</li>
+    <li>Anonymity-র চারটি টুল।</li>
+    <li>Passive ও active আক্রমণের পার্থক্য; masquerading, alteration, replay, DoS, repudiation ব্যাখ্যা।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="index.html"><small>← হোম</small>সব লেকচার</a>
+  <a class="next" href="lecture3.html"><small>পরের লেকচার →</small>Lecture 3: Security Principles</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/sha256.js"></script>
+<script src="js/l1.js"></script>
+</body>
+</html>

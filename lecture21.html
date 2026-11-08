@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture 21 · Network Attacks II</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-lecture="L21">
+<header class="topbar">
+  <a class="home" href="index.html">🔐 <b>CSE 477</b> নোট</a>
+  <span class="spacer"></span>
+  <div class="progress"><i></i></div><span class="progress-label"></span>
+  <button class="icon-btn" data-theme-toggle title="লাইট/ডার্ক">🌓</button>
+</header>
+
+<div class="layout">
+<aside class="sidebar"><h4>Lecture 21 – সূচি</h4><ol id="toc"></ol></aside>
+<main>
+
+<div class="hero">
+  <div class="kicker">LECTURE 21</div>
+  <h1>Network Attacks II — Session Hijacking, DoS/DDoS, DNS Poisoning</h1>
+  <p>TCP 3-way handshake থেকে TCP sequence prediction দিয়ে session hijacking; DoS-এর তিন রূপ — Ping flood, Smurf, SYN flood (ও SYN cookie); বটনেট দিয়ে DDoS; আর DNS cache poisoning ও প্রতিকার।</p>
+  <div class="chips"><span class="chip">SYN · SYN-ACK · ACK</span><span class="chip">Sequence prediction</span><span class="chip">Ping flood · Smurf</span><span class="chip">SYN flood · SYN cookie</span><span class="chip">Botnet</span><span class="chip">DNS cache poisoning</span></div>
+</div>
+
+<section class="topic" id="handshake">
+  <h2>TCP 3-way Handshake</h2>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">💻 Client</span><span class="arr">SYN, seq = x →</span><span class="node b">🖥️ Server</span></div><p><b>১. SYN:</b> Client একটা initial sequence number <b>x</b> বেছে connection চায়।</p></div>
+    <div class="step"><div class="flow"><span class="node">💻 Client</span><span class="arr">← SYN-ACK, seq = y, ack = x+1</span><span class="node b">🖥️ Server<br><small>half-open state মনে রাখে</small></span></div><p><b>২. SYN-ACK:</b> Server নিজের sequence number <b>y</b> বেছে x+1 acknowledge করে, আর এই <b>অর্ধ-খোলা connection-এর তথ্য memory-তে</b> রাখে।</p></div>
+    <div class="step"><div class="flow"><span class="node">💻 Client</span><span class="arr">ACK, ack = y+1 →</span><span class="node b">🖥️ Server ✅</span></div><p><b>৩. ACK:</b> Client y+1 acknowledge করে। Connection established। <b>যে y+1 জানে, server তাকেই client মনে করে!</b></p></div>
+  </div>
+  <div class="box exam"><span class="label">🎯 মূল কথা</span><p>এই লেকচারের দুটো আক্রমণ handshake-এর দুই দুর্বলতা ব্যবহার করে: <b>sequence prediction</b> → ধাপ ৩-এর y+1 আন্দাজ করা; <b>SYN flood</b> → ধাপ ২-এর memory ভরিয়ে ফেলা।</p></div>
+</section>
+
+<section class="topic" id="hijack">
+  <h2>TCP Session Hijacking ও Sequence Prediction</h2>
+  <p>Session = server যে client-এর connection-এর state রাখে (কোন বার্তা গেল, কী কাজ হলো)। <b>TCP session hijacking</b> = সেই নেটওয়ার্ক session-এর নিয়ন্ত্রণ নিয়ে নেওয়ার চেষ্টা। Attacker-এর অবস্থান ও জ্ঞানের উপর এর কয়েক রকম রূপ আছে।</p>
+  <p><b>TCP sequence prediction</b> = server-এর initial sequence number আন্দাজ করে একটা spoofed TCP session তৈরি।</p>
+  <ul><li>পুরনো TCP stack: প্রতিবার <b>১ করে বাড়ানো সরল counter</b> — কোনো randomness নেই, তাই পরেরটা আন্দাজ করা খুবই সহজ।</li><li>আধুনিক stack: <b>pseudo-random number generator</b> — কঠিন, কিন্তু অসম্ভব নয়।</li></ul>
+  <h3>আক্রমণের ধাপ</h3>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">😈 Attacker</span><span class="arr">💥 DoS →</span><span class="node">💻 Victim client</span></div><p><b>১.</b> Victim client-এর উপর DoS — যাতে সে হস্তক্ষেপ (RST পাঠানো) করতে না পারে।</p></div>
+    <div class="step"><div class="flow"><span class="node">😈 Attacker<br><small>src = victim IP</small></span><span class="arr">SYN →</span><span class="node b">🖥️ Server</span></div><p><b>২.</b> Server-কে SYN পাঠায়, source IP spoof করে victim-এর।</p></div>
+    <div class="step"><div class="flow"><span class="node b">🖥️ Server</span><span class="arr">SYN-ACK (seq=y) → ✖</span><span class="node">💻 Victim (অচল)</span></div><p><b>৩.</b> Server-এর SYN-ACK victim-এর কাছে যায় — attacker দেখতে পায় না, victim DoS-এ থাকায় সাড়াও দেয় না।</p></div>
+    <div class="step"><div class="flow"><span class="node">😈 Attacker<br><small>src = victim IP</small></span><span class="arr">ACK, ack = <b>আন্দাজ y+1</b> →</span><span class="node b">🖥️ Server ✅</span></div><p><b>৪.</b> একটু অপেক্ষা করে আন্দাজ করা sequence number দিয়ে ACK — handshake শেষ। এখন attacker victim সেজে request পাঠাতে পারে।</p></div>
+  </div>
+  <div class="lab"><span class="label">🧪 Sequence number আন্দাজ করো</span>
+    <div class="row"><label for="isn">Server-এর ISN generator</label><select id="isn"><option value="ctr">পুরনো: counter (+1)</option><option value="rnd">আধুনিক: random</option></select><button class="btn" id="observe">আগের ৩টা connection দেখো</button></div>
+    <div class="out" id="obs"></div>
+    <div class="row"><label for="guess">তোমার আন্দাজ (পরের seq)</label><input type="number" id="guess" style="width:160px"><button class="btn ghost" id="try">ACK পাঠাও</button></div>
+    <div class="out" id="tres"></div>
+  </div>
+  <h3>প্রতিকার</h3>
+  <ul>
+    <li><b>Encryption ও authentication</b> — network layer-এ (<b>IPsec</b>) অথবা application layer-এ পুরো session encrypt করে এমন protocol।</li>
+    <li>সাইটগুলো যেন <b>secure authentication দিয়ে শুরু করে পরে unencrypted-এ না নামে</b> — এতে efficiency-র জন্য security বিসর্জন হয়।</li>
+  </ul>
+</section>
+
+<section class="topic" id="dos">
+  <h2>DoS: Ping Flood ও Smurf</h2>
+  <p>Bandwidth সীমিত, তাই একটা সার্ভার যতগুলো connection রাখতে পারে তাও সীমিত। Bandwidth বা প্রসেসর শেষ হলে নতুন connection drop হয়। মেশিন/সফটওয়্যারকে তার মৌলিক কাজ করতে অক্ষম করার যেকোনো আক্রমণ = <b>Denial-of-Service (DoS)</b>। Attacker-এর পরিচয় লুকাতে ও প্রতিকার কঠিন করতে প্রায়ই <b>source IP spoof</b> করা হয়।</p>
+  <p>তিন ধরন: <b>ICMP আক্রমণ</b> (Ping flood, Smurf) ও <b>SYN flood</b>।</p>
+  <h3>Ping Flood</h3>
+  <p>শক্তিশালী মেশিন দুর্বল সার্ভারে বিপুল ICMP echo request পাঠায়। দুটো শর্ত পূরণ হলে victim ডুবে যায় ও বৈধ connection drop করে:</p>
+  <ol><li>Attacker যত request বানাতে পারে, victim তত প্রসেস করতে পারে না;</li><li>Victim-এর সব request গ্রহণ করার মতো যথেষ্ট bandwidth আছে।</li></ol>
+  <h3>Smurf (Directed Broadcast) Attack</h3>
+  <p>কিছু implementation <b>broadcast address</b>-এ পাঠানো ping-এরও উত্তর দেয়। Attacker:</p>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">😈 Attacker</span><span class="arr">ping → 192.168.1.255<br><small>src = victim IP</small></span><span class="node">🏢 Amplifier LAN</span></div><p><b>১.</b> Source address-এ <b>victim-এর IP</b> বসিয়ে একটা ping পাঠায় একটা নেটওয়ার্কের <b>broadcast address</b>-এ (Smurf amplifier)।</p></div>
+    <div class="step"><div class="flow"><span class="node">🏢 ১০০টা host</span><span class="arr">১০০ × ECHO reply →</span><span class="node" style="border-color:var(--bad)">🎯 Victim</span></div><p><b>২.</b> LAN-এর প্রতিটা host victim-কে উত্তর দেয় — একটা packet → শত শত reply। <b>Amplification!</b> আগের দুটো শর্ত পূরণ হলে victim ডুবে যায়।</p></div>
+  </div>
+  <div class="lab"><span class="label">🧪 Amplification হিসাব</span>
+    <div class="row"><label for="ah">Amplifier LAN-এ host</label><input type="range" id="ah" min="1" max="500" value="100"><label for="ar">Attacker-এর ping/সেকেন্ড</label><input type="range" id="ar" min="1" max="1000" value="200"></div>
+    <div class="out" id="aout"></div>
+  </div>
+  <h3>Smurf প্রতিকার</h3>
+  <ul><li>Host ও router যেন <b>broadcast request উপেক্ষা</b> করে।</li><li>Router যেন broadcast address-এ পাঠানো packet <b>forward না করে</b> (নইলে নেটওয়ার্ক নিজেই amplifier)।</li><li>দুর্বল সার্ভার হলে ping সম্পূর্ণ উপেক্ষা করা ভালো (ping flood ঠেকাতে)।</li></ul>
+</section>
+
+<section class="topic" id="syn">
+  <h2>SYN Flood ও SYN Cookie</h2>
+  <p>Attacker প্রচুর <b>SYN</b> পাঠায়, SYN/ACK উপেক্ষা করে, কখনো <b>ACK পাঠায় না</b>। সাধারণত random spoofed source দেয়, তাই SYN/ACK random IP-তে যায়। Server-এর memory ভরে যায় half-open connection-এর sequence number দিয়ে, যেগুলোর ACK কখনো আসবে না → বৈধ connection request জায়গা পায় না।</p>
+  <div class="lab"><span class="label">🧪 SYN flood simulator — server-এর backlog queue (১৬ স্লট)</span>
+    <div class="row"><label><input type="checkbox" id="cookie"> SYN cookie চালু</label><button class="btn" id="flood">😈 ২০টা ভুয়া SYN পাঠাও</button><button class="btn ghost" id="legit">🙂 বৈধ client connect করুক</button><button class="btn ghost" id="sreset">রিসেট</button></div>
+    <div class="out" id="qviz"></div>
+    <div class="out" id="slog"></div>
+  </div>
+  <h3>SYN Cookie</h3>
+  <p>Handshake শেষ না হওয়া পর্যন্ত server client-এর state আসলে <b>রাখেই না</b> — state-টা sequence number-এর ভেতরেই ঢুকিয়ে দেয়:</p>
+  <div class="formula">SYN এলে:   y = H(src IP, src port, dst IP, dst port, counter, SECRET)
+            → SYN-ACK-এ seq = y পাঠাও, কিছু মনে রেখো না
+ACK এলে:   ack − 1 আবার হিসাব করে মেলাও → মিললে তবেই connection তৈরি</div>
+  <ul><li>H হতে পারে one-way hash function; SECRET শুধু server জানে।</li><li>Sequence number আন্দাজ করা কঠিন হতে হবে।</li></ul>
+  <h3>SYN cookie-র সীমাবদ্ধতা</h3>
+  <ul><li>Windows গ্রহণ করেনি; কয়েকটা Linux distribution-এ আছে।</li><li>প্রধান সমস্যা: সাধারণত <b>TCP options field</b> ব্যবহার করতে দেয় না — কারণ এই তথ্য সাধারণত SYN queue entry-র সাথে রাখা হয়।</li><li>নতুন Linux implementation option তথ্য TCP packet-এর <b>timestamp field</b>-এ encode করে এই সমস্যা কমানোর চেষ্টা করে।</li></ul>
+</section>
+
+<section class="topic" id="ddos">
+  <h2>Distributed DoS (DDoS)</h2>
+  <p>একাধিক (শত/হাজার) আক্রমণকারী মেশিন দিয়ে একটা সাইটে ট্রাফিক পাঠিয়ে DoS = <b>DDoS</b>। Yahoo!, Amazon, Google বারবার শিকার হয়েছে। প্রায়ই <b>botnet</b> ব্যবহার হয় — দূর থেকে নিয়ন্ত্রণযোগ্য, আপোষকৃত মেশিনের বিশাল নেটওয়ার্ক।</p>
+  <div class="formula">            😈 Attacker
+                │  command
+        ┌───────┼───────┐
+     🖥️ C&amp;C   🖥️ C&amp;C   🖥️ C&amp;C        ← handler / master
+     ╱ │ ╲    ╱ │ ╲    ╱ │ ╲
+    🤖 🤖 🤖  🤖 🤖 🤖  🤖 🤖 🤖     ← zombie/bot (আক্রান্ত PC, IoT ক্যামেরা…)
+      ╲  ╲  ╲   │   ╱  ╱  ╱
+             🎯 Victim server</div>
+  <h3>প্রতিকার</h3>
+  <ul>
+    <li>তত্ত্বে DDoS <b>সম্পূর্ণ দূর করা অসম্ভব</b> — server-এর bandwidth সবসময় সীমিত।</li>
+    <li>তবু ঝুঁকি কমানো যায়: আসা ট্রাফিক বিশ্লেষণ করে যেসব উৎস অতিরিক্ত bandwidth খাচ্ছে তাদের packet drop।</li>
+    <li>কিন্তু IP spoofing bot-দের পরিচয় লুকিয়ে ও অসামঞ্জস্যপূর্ণ উৎস দেখিয়ে প্রতিরোধ কঠিন করে।</li>
+  </ul>
+  <div class="box example"><span class="label">💡 বাস্তব উদাহরণ</span><p>২০১৬-র <b>Mirai botnet</b> লাখো IoT ক্যামেরা/রাউটার (ডিফল্ট password-এর) দিয়ে DNS provider Dyn-কে আক্রমণ করে — Twitter, Netflix, Reddit কয়েক ঘণ্টা অচল ছিল।</p></div>
+</section>
+
+<section class="topic" id="dnspoison">
+  <h2>DNS Cache Poisoning</h2>
+  <p>Lecture 19-এ দেখেছি local DNS (LDNS) server উত্তর <b>cache</b> করে, আর DNS-এ মূলত কোনো authentication নেই — LDNS শুধু দেখে উত্তরের <b>query ID</b> (16-bit) ও port মিলছে কি না। Attacker এই সুযোগে ভুয়া উত্তর cache-এ ঢোকায়।</p>
+  <div class="stepper">
+    <div class="step"><div class="flow"><span class="node">😈 Attacker</span><span class="arr">“www.bank.com কোথায়?” →</span><span class="node">🗄️ LDNS</span></div><p><b>১.</b> Attacker LDNS-কে এমন নাম জিজ্ঞেস করে যা cache-এ নেই। LDNS authoritative server-কে প্রশ্ন করে (query ID = কোনো একটা সংখ্যা)।</p></div>
+    <div class="step"><div class="flow"><span class="node">😈 Attacker</span><span class="arr">শত শত ভুয়া উত্তর<br>“bank.com = 6.6.6.6”, ID = 1, 2, 3…</span><span class="node">🗄️ LDNS</span></div><p><b>২.</b> আসল উত্তর আসার আগেই attacker authoritative server সেজে অনেক ভুয়া উত্তর পাঠায়, প্রতিটায় আলাদা ID আন্দাজ করে।</p></div>
+    <div class="step"><div class="flow"><span class="node">🗄️ LDNS<br><small>cache: bank.com → 6.6.6.6 ☠️</small></span></div><p><b>৩.</b> কোনো একটার ID মিলে গেলে LDNS সেটা বিশ্বাস করে <b>cache</b>-এ রাখে; পরে আসা আসল উত্তর বাতিল।</p></div>
+    <div class="step"><div class="flow"><span class="node">👥 ISP-র সব গ্রাহক</span><span class="arr">bank.com →</span><span class="node" style="border-color:var(--bad)">🎣 6.6.6.6 (ভুয়া সাইট)</span></div><p><b>৪.</b> TTL শেষ না হওয়া পর্যন্ত ওই ISP-র <b>সব</b> ব্যবহারকারী ঠিক URL টাইপ করেও ভুয়া সাইটে যায় → phishing, malware।</p></div>
+  </div>
+  <h3>প্রতিকার</h3>
+  <ul>
+    <li>বেশিরভাগ আক্রমণ লক্ষ্য করে <b>ISP-র LDNS</b>-কে, authoritative server-কে নয়।</li>
+    <li>আগে LDNS বাইরের সবার জন্য খোলা থাকত; <b>২০০৮ থেকে</b> বেশিরভাগ LDNS শুধু নিজের internal network-এর request নেয় → ISP-র বাইরে থেকে poisoning বন্ধ।</li>
+    <li>কিন্তু নেটওয়ার্কের ভেতর থেকে আক্রমণের সম্ভাবনা থেকেই যায়; অন্য কৌশলও আছে (source port randomization, DNSSEC), তবু poisoning-এর সম্ভাবনা এখনো আছে।</li>
+  </ul>
+</section>
+
+<section class="topic" id="review">
+  <h2>রিভিশন কুইজ</h2>
+  <div class="quiz" data-answer="2">
+    <div class="q">১) TCP sequence prediction আক্রমণের শুরুতে attacker victim client-এর উপর DoS চালায় কেন?</div>
+    <button class="opt">Server-কে ধীর করতে</button><button class="opt">Sequence number দেখতে</button><button class="opt">যাতে victim SYN-ACK পেয়ে হস্তক্ষেপ (reset) করতে না পারে</button><button class="opt">DNS poison করতে</button>
+    <div class="explain">Victim অপ্রত্যাশিত SYN-ACK পেলে RST পাঠিয়ে connection ভেঙে দিত।</div>
+  </div>
+  <div class="quiz" data-answer="1">
+    <div class="q">২) Spoofed source দিয়ে broadcast address-এ ping — কোন আক্রমণ?</div>
+    <button class="opt">Ping flood</button><button class="opt">Smurf</button><button class="opt">SYN flood</button><button class="opt">Session hijacking</button>
+    <div class="explain">Directed broadcast + amplification = Smurf।</div>
+  </div>
+  <div class="quiz" data-answer="0">
+    <div class="q">৩) SYN cookie-তে server half-open connection-এর state কোথায় রাখে?</div>
+    <button class="opt">SYN-ACK-এর sequence number-এর ভেতরে (hash করে)</button><button class="opt">বড় backlog queue-তে</button><button class="opt">Client-এর cookie ফাইলে</button><button class="opt">DNS-এ</button>
+    <div class="explain">Server কিছু মনে রাখে না; ACK এলে আবার হিসাব করে মেলায়।</div>
+  </div>
+  <div class="quiz" data-answer="3">
+    <div class="q">৪) ২০০৮-এর পর DNS cache poisoning কমাতে LDNS-এ কী করা হয়?</div>
+    <button class="opt">TTL শূন্য</button><button class="opt">Root server বন্ধ</button><button class="opt">সব query encrypt</button><button class="opt">শুধু internal network-এর request গ্রহণ</button>
+    <div class="explain">বাইরে থেকে poisoning-এর চেষ্টা বন্ধ হয়।</div>
+  </div>
+  <div class="box exam"><span class="label">🎯 সম্ভাব্য পরীক্ষার প্রশ্ন</span><ul>
+    <li>TCP 3-way handshake আঁকো; sequence prediction দিয়ে session hijacking-এর ধাপ লেখো; প্রতিকার।</li>
+    <li>DoS কী? Ping flood-এর দুই শর্ত।</li>
+    <li>Smurf attack ব্যাখ্যা ও প্রতিকার।</li>
+    <li>SYN flood কীভাবে কাজ করে? SYN cookie ও তার সীমাবদ্ধতা।</li>
+    <li>DDoS ও botnet; কেন DDoS সম্পূর্ণ ঠেকানো যায় না?</li>
+    <li>DNS cache poisoning ও প্রতিকার।</li>
+  </ul></div>
+</section>
+
+<div class="pager">
+  <a href="lecture20.html"><small>← আগের লেকচার</small>Lecture 20: Network Attacks I</a>
+  <a class="next" href="lecture24.html"><small>পরের লেকচার →</small>Lecture 24: Web Security I</a>
+</div>
+<div class="score-box"></div>
+</main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/sha256.js"></script>
+<script src="js/l21.js"></script>
+</body>
+</html>
